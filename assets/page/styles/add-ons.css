@@ -249,28 +249,7 @@
    SCROLL & SELECTION CUSTOMIZATIONS
    ============================================ */
 
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
 
-::-webkit-scrollbar-track {
-    background: var(--bg-secondary);
-}
-
-::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, var(--cloud-gradient-start), var(--cloud-gradient-end));
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--primary-color);
-}
-
-::selection {
-    background: var(--primary-color);
-    color: #ffffff;
-}
 
 /* ============================================
    MOBILE MENU CUSTOMIZATIONS

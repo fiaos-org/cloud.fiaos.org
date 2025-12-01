@@ -145,6 +145,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Smooth Scroll Enhancement
     // ============================================
     function initSmoothScroll() {
+        // Remove top margin/padding from .site-header if .top-toolbar is missing
+        const siteHeader = document.querySelector('.site-header');
+        const topToolbar = document.querySelector('.top-toolbar');
+        if (siteHeader && !topToolbar) {
+            siteHeader.style.marginTop = '0';
+            siteHeader.style.paddingTop = '0';
+        }
+
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
                 const href = this.getAttribute('href');
@@ -251,67 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ============================================
     // Back to Top Button
     // ============================================
-    function initBackToTop() {
-        // Create button if it doesn't exist
-        let backToTop = document.getElementById('backToTop');
-        
-        if (!backToTop) {
-            backToTop = document.createElement('button');
-            backToTop.id = 'backToTop';
-            backToTop.innerHTML = '<i class="bi bi-arrow-up"></i>';
-            backToTop.setAttribute('aria-label', 'Back to top');
-            backToTop.style.cssText = `
-                position: fixed;
-                bottom: 2rem;
-                right: 2rem;
-                width: 48px;
-                height: 48px;
-                border-radius: 50%;
-                background: linear-gradient(135deg, #6366f1, #8b5cf6);
-                color: white;
-                border: none;
-                cursor: pointer;
-                opacity: 0;
-                visibility: hidden;
-                transition: all 0.3s ease;
-                z-index: 1000;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 1.25rem;
-                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-            `;
-            document.body.appendChild(backToTop);
-        }
-        
-        // Show/hide based on scroll
-        window.addEventListener('scroll', () => {
-            if (window.pageYOffset > 300) {
-                backToTop.style.opacity = '1';
-                backToTop.style.visibility = 'visible';
-            } else {
-                backToTop.style.opacity = '0';
-                backToTop.style.visibility = 'hidden';
-            }
-        });
-        
-        // Scroll to top on click
-        backToTop.addEventListener('click', () => {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        });
-        
-        // Hover effect
-        backToTop.addEventListener('mouseenter', () => {
-            backToTop.style.transform = 'translateY(-4px)';
-        });
-        
-        backToTop.addEventListener('mouseleave', () => {
-            backToTop.style.transform = 'translateY(0)';
-        });
-    }
+ 
 
     // ============================================
     // Initialize All Cloud Customizations

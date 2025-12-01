@@ -220,9 +220,6 @@
     background: var(--bg-secondary) !important;
 }
 
-.footer {
-    background: linear-gradient(180deg, #0f172a 0%, #020617 100%) !important;
-}
 
 .footer-social a {
     transition: all 0.2s ease !important;

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiaphy - Environmental Monitoring System</title>
+    <meta name="description" content="Real-time environmental monitoring and data collection system">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="./styles/main.css">
+    <link rel="icon" type="image/png" href="https://fiaos.org/assets/media/umbrella-logo-clean.png">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <img src="https://fiaos.org/assets/media/umbrella-logo-clean.png" alt="Fiaphy Logo" class="loading-logo">
+        <div class="spinner">
+            <svg class="circular" viewBox="25 25 50 50">
+                <circle class="path" cx="50" cy="50" r="20" fill="none" stroke-width="2" stroke-miterlimit="10"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="dashboard hidden">
+        <!-- Header -->
+        <header  class="header">
+            <div class="header-content">
+                <div class="header-brand">
+                    <img src="https://fiaos.org/assets/media/umbrella-logo-clean.png" alt="Logo" class="brand-logo">
+                    <div class="brand-info">
+                       
+                        <h1 class="brand-title">Cloud Connections</h1>
+
+                    </div>
+                      
+                    
+                </div>
+                <div class="header-status">
+                    <div class="connection-status" id="connectionStatus">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Not Connected</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+ 
+ <header class="header-content" style=" margin-top: 2rem; justify-content: flex-start;align-items: flex-start; width: 100%;">      <img style="width: 5rem;" src="https://fiaos.org/assets/media/fiaphy-clean.png" alt="Logo" ></header> 
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Device Not Connected State -->
+            <div id="noDevice" class="no-device hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM5 8h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/>
+                    <path d="M8 10.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2a.5.5 0 0 1 .5-.5z"/>
+                </svg>
+                <h2>No Device Connected</h2>
+                <p>Waiting for device connection...</p>
+            </div>
+
+            <!-- Data Grid -->
+            <div id="dataGrid" class="data-grid">
+                <!-- Temperature -->
+                <div class="data-card">
+                    <div class="data-card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 14a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
+                            <path d="M8 0a2.5 2.5 0 0 0-2.5 2.5v7.55a3.5 3.5 0 1 0 5 0V2.5A2.5 2.5 0 0 0 8 0zM6.5 2.5a1.5 1.5 0 1 1 3 0v7.987a2.5 2.5 0 1 1-3 0V2.5z"/>
+                        </svg>
+                        <span class="data-label">Temperature</span>
+                    </div>
+                    <div class="data-value">
+                        <span id="temperature" class="value-number">--</span>
+                        <span class="value-unit">°C</span>
+                    </div>
+                </div>
+
+                <!-- Humidity -->
+                <div class="data-card">
+                    <div class="data-card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M13.5 0a.5.5 0 0 0 0 1H15v2.75h-.5a.5.5 0 0 0 0 1h.5V7.5h-1.5a.5.5 0 0 0 0 1H15v2.75h-.5a.5.5 0 0 0 0 1h.5V15h-1.5a.5.5 0 0 0 0 1h2a.5.5 0 0 0 .5-.5V.5a.5.5 0 0 0-.5-.5h-2zM7 1.5l.364-.343a.5.5 0 0 0-.728 0l-.002.002-.006.007-.022.023-.08.088a28.458 28.458 0 0 0-1.274 1.517c-.769.983-1.714 2.325-2.385 3.727C2.368 7.564 2 8.682 2 9.733 2 12.614 4.212 15 7 15s5-2.386 5-5.267c0-1.05-.368-2.169-.867-3.212-.671-1.402-1.616-2.744-2.385-3.727a28.458 28.458 0 0 0-1.354-1.605l-.022-.023-.006-.007-.002-.001L7 1.5zm0 0-.364-.343L7 1.5zm-.016.766L7 2.247l.016.019c.24.274.572.667.944 1.144.611.781 1.32 1.776 1.901 2.827H4.14c.58-1.051 1.29-2.046 1.9-2.827.373-.477.706-.87.945-1.144zM3 9.733c0-.755.244-1.612.638-2.496h6.724c.395.884.638 1.741.638 2.496C11 12.117 9.182 14 7 14s-4-1.883-4-4.267z"/>
+                        </svg>
+                        <span class="data-label">Humidity</span>
+                    </div>
+                    <div class="data-value">
+                        <span id="humidity" class="value-number">--</span>
+                        <span class="value-unit">%</span>
+                    </div>
+                </div>
+
+                <!-- Air Pressure -->
+                <div class="data-card">
+                    <div class="data-card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zM8 1.918l-.797.161A4.002 4.002 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4.002 4.002 0 0 0-3.203-3.92L8 1.917zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5.002 5.002 0 0 1 13 6c0 .88.32 4.2 1.22 6z"/>
+                        </svg>
+                        <span class="data-label">Air Pressure</span>
+                    </div>
+                    <div class="data-value">
+                        <span id="airPressure" class="value-number">--</span>
+                        <span class="value-unit">hPa</span>
+                    </div>
+                </div>
+
+                <!-- Solar Radiation -->
+                <div class="data-card">
+                    <div class="data-card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/>
+                        </svg>
+                        <span class="data-label">Solar Radiation</span>
+                    </div>
+                    <div class="data-value">
+                        <span id="solarRadiation" class="value-number">--</span>
+                        <span class="value-unit">W/m²</span>
+                    </div>
+                </div>
+
+                <!-- Heat Flux -->
+                <div class="data-card">
+                    <div class="data-card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M7.998 14.5c-1.57 0-2.993-.67-3.985-1.74-.993-1.07-1.511-2.5-1.428-4.029a6.51 6.51 0 0 1 1.357-3.617C4.91 4.017 6.13 3.087 7.5 2.5c.734-.314 1.502-.464 2.284-.464.782 0 1.55.15 2.284.464 1.37.587 2.59 1.517 3.557 2.614a6.51 6.51 0 0 1 1.357 3.617c.083 1.529-.435 2.959-1.428 4.029-.992 1.07-2.415 1.74-3.985 1.74-.657 0-1.287-.114-1.872-.324a6.122 6.122 0 0 1-1.872.324z"/>
+                        </svg>
+                        <span class="data-label">Heat Flux</span>
+                    </div>
+                    <div class="data-value">
+                        <span id="heatFlux" class="value-number">--</span>
+                        <span class="value-unit">W/m²</span>
+                    </div>
+                </div>
+
+                <!-- Delta Temperature -->
+                <div class="data-card">
+                    <div class="data-card-header">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M12 2.5a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 0 1h-1v1a.5.5 0 0 1-1 0v-1h-1a.5.5 0 0 1 0-1h1V3a.5.5 0 0 1 .5-.5z"/>
+                            <path d="M8 14a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
+                            <path d="M8 0a2.5 2.5 0 0 0-2.5 2.5v7.55a3.5 3.5 0 1 0 5 0V2.5A2.5 2.5 0 0 0 8 0zM6.5 2.5a1.5 1.5 0 1 1 3 0v7.987a2.5 2.5 0 1 1-3 0V2.5z"/>
+                        </svg>
+                        <span class="data-label">Delta Temperature</span>
+                    </div>
+                    <div class="data-value">
+                        <span id="deltaTemperature" class="value-number">--</span>
+                        <span class="value-unit">°C</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Privacy Notice -->
+            <div class="privacy-notice">
+                <p><strong>Data Privacy:</strong> These measurements are local and not connected to the internet. To host this data online, please allow cloud synchronization in the device settings.</p>
+            </div>
+
+            <!-- Learn More Section -->
+            <div class="learn-more-section">
+                <p><a href="https://fiaos.org/about" target="_blank" rel="noopener">Learn more about this project and how we built this →</a></p>
+            </div>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-columns">
+                    <!-- Branding Section -->
+                    <div class="footer-column footer-branding">
+                        <p class="footer-tagline">Future is Autonomous.</p>
+                        <div class="footer-logo">
+                            <img src="https://fiaos.org/assets/media/logo-satur.png" alt="FiaOS Logo">
+                        </div>
+                    </div>
+
+                    <!-- Project Links -->
+                    <div class="footer-column">
+                        <h4>Project</h4>
+                        <ul>
+                            <li><a href="https://fiaos.org/research/" target="_blank" rel="noopener">Research</a></li>
+                            <li><a href="https://fiaos.org/docs/" target="_blank" rel="noopener">Documentation</a></li>
+                            <li><a href="https://fiaos.org/archive" target="_blank" rel="noopener">Archive</a></li>
+                            <li><a href="https://fiaos.org/data" target="_blank" rel="noopener">Data</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Resources Links -->
+                    <div class="footer-column">
+                        <h4>Resources</h4>
+                        <ul>
+                            <li><a href="https://fiaos.org/api/" target="_blank" rel="noopener">API</a></li>
+                            <li><a href="https://fiaos.org/docs/development-updates-and-networks/" target="_blank" rel="noopener">Service Shutdowns</a></li>
+                            <li><a href="https://fiaos.org/docs/contributing.html" target="_blank" rel="noopener">Contributing</a></li>
+                            <li><a href="https://fiaos.org/docs/license" target="_blank" rel="noopener">License</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Contact Links -->
+                    <div class="footer-column">
+                        <h4>Contact</h4>
+                        <ul>
+                            <li><a href="mailto:research@fiaos.org">research@fiaos.org</a></li>
+                            <li><a href="https://nekshadesilva.com/research" target="_blank" rel="noopener">Published Research</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Footer Bottom -->
+                <div class="footer-bottom">
+                    <div class="footer-copyright">
+                        <p>Copyrights © Neksha DeSilva and www.nekshadesilva.com. All rights reserved.</p>
+                    </div>
+                    <div class="footer-social">
+                        <a href="https://x.com/NekshaDesilva" target="_blank" rel="noopener" aria-label="X (Twitter)">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                            </svg>
+                        </a>
+                        <a href="https://youtube.com/@NekshaDesilva" target="_blank" rel="noopener" aria-label="YouTube">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="./javascript/api.js"></script>
+    <script src="./javascript/ui.js"></script>
+    <script src="./javascript/main.js"></script>
+</body>
+</html>

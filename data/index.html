@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datasets - Fiaphy Historical Data</title>
+    <meta name="description" content="Historical environmental monitoring data categorized by location and region">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="icon" type="image/png" href="https://fiaos.org/assets/media/umbrella-logo-clean.png">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { font-size: 16px; }
+        body { font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background: #000000; color: #ffffff; line-height: 1.6; }
+        
+        /* Loading Screen */
+        .loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: #000000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rem; z-index: 9999; }
+        .loading-logo { width: 80px; height: auto; filter: brightness(0) invert(1); }
+        .spinner { position: relative; width: 60px; height: 60px; }
+        .spinner:before { content: ""; display: block; padding-top: 100%; }
+        .circular { animation: rotate 1s linear infinite; height: 100%; width: 100%; position: absolute; top: 0; bottom: 0; left: 0; right: 0; margin: auto; }
+        .path { stroke: #ffffff; stroke-dasharray: 1, 200; stroke-dashoffset: 0; animation: dash 1.5s ease-in-out infinite; stroke-linecap: round; }
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
+        @keyframes dash { 0% { stroke-dasharray: 1, 200; stroke-dashoffset: 0; } 50% { stroke-dasharray: 89, 200; stroke-dashoffset: -35px; } 100% { stroke-dasharray: 89, 200; stroke-dashoffset: -124px; } }
+        
+        /* Page Container */
+        .page { min-height: 100vh; display: flex; flex-direction: column; opacity: 1; transition: opacity 0.3s ease; }
+        .page.hidden { display: none; }
+        
+        /* Header */
+        .header { background: #000000; padding: 1rem 0; border-bottom: 1px solid #111111; }
+        .header-content { max-width: 1400px; margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+        .header-brand { display: flex; align-items: center; gap: 0.75rem; }
+        .brand-logo { width: 5rem; height: auto; filter: brightness(0) invert(1); }
+        .brand-title { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
+        .nav-back { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: #111111; border-radius: 8px; color: #ffffff; text-decoration: none; font-size: 0.875rem; transition: background 0.2s; }
+        .nav-back:hover { background: #1a1a1a; }
+        
+        /* Main Content */
+        .main-content { flex: 1; max-width: 1400px; width: 100%; margin: 0 auto; padding: 3rem 1.5rem; }
+        .page-header { margin-bottom: 3rem; }
+        .page-title { font-size: 2.5rem; font-weight: 300; margin-bottom: 0.5rem; letter-spacing: -0.03em; }
+        .page-subtitle { font-size: 1rem; color: #888888; }
+        
+        /* Filters */
+        .filters { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; padding: 1.5rem; background: #111111; border-radius: 12px; }
+        .filter-group { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; min-width: 200px; }
+        .filter-label { font-size: 0.875rem; font-weight: 500; color: #888888; }
+        .filter-select, .filter-input { background: #000000; border: 1px solid #333333; color: #ffffff; padding: 0.75rem; border-radius: 8px; font-size: 0.875rem; font-family: 'Inter', sans-serif; }
+        .filter-select:focus, .filter-input:focus { outline: none; border-color: #555555; }
+        .filter-button { background: #ffffff; color: #000000; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .filter-button:hover { background: #e0e0e0; }
+        
+        /* Stats Cards */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 3rem; }
+        .stat-card { background: #111111; padding: 1.5rem; border-radius: 12px; }
+        .stat-label { font-size: 0.875rem; color: #888888; margin-bottom: 0.5rem; }
+        .stat-value { font-size: 2rem; font-weight: 300; letter-spacing: -0.02em; }
+        
+        /* Location Groups */
+        .location-groups { display: flex; flex-direction: column; gap: 2rem; }
+        .location-group { background: #111111; border-radius: 12px; padding: 1.5rem; }
+        .location-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; cursor: pointer; }
+        .location-title { font-size: 1.25rem; font-weight: 600; }
+        .location-meta { display: flex; gap: 1rem; font-size: 0.875rem; color: #888888; }
+        .location-toggle { font-size: 1.5rem; transition: transform 0.3s; }
+        .location-toggle.open { transform: rotate(180deg); }
+        
+        /* Data Table */
+        .data-table-container { overflow-x: auto; display: none; }
+        .data-table-container.open { display: block; }
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { text-align: left; padding: 0.75rem; background: #000000; color: #888888; font-size: 0.875rem; font-weight: 500; }
+        .data-table td { padding: 0.75rem; border-top: 1px solid #1a1a1a; font-size: 0.875rem; }
+        .data-table tr:hover { background: #0a0a0a; }
+        
+        /* Empty State */
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; text-align: center; gap: 1rem; color: #888888; }
+        .empty-state i { font-size: 3rem; }
+        
+        /* Footer */
+        .footer { background: #000000; padding: 2rem 0; margin-top: auto; border-top: 1px solid #111111; }
+        .footer-content { max-width: 1400px; margin: 0 auto; padding: 0 1.5rem; text-align: center; }
+        .footer-text { font-size: 0.875rem; color: #666666; }
+        
+        @media (max-width: 768px) {
+            .page-title { font-size: 2rem; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .filters { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <img src="https://fiaos.org/assets/media/umbrella-logo-clean.png" alt="Fiaphy Logo" class="loading-logo">
+        <div class="spinner">
+            <svg class="circular" viewBox="25 25 50 50">
+                <circle class="path" cx="50" cy="50" r="20" fill="none" stroke-width="2" stroke-miterlimit="10"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Main Page -->
+    <div id="page" class="page hidden">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="header-brand">
+                    <img src="https://fiaos.org/assets/media/umbrella-logo-clean.png" alt="Logo" class="brand-logo">
+                    <h1 class="brand-title">Datasets</h1>
+                </div>
+                <a href="../fiaphy/" class="nav-back">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to Dashboard
+                </a>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h2 class="page-title">Historical Data</h2>
+                <p class="page-subtitle">Explore environmental monitoring data categorized by location and region</p>
+            </div>
+
+            <!-- Statistics -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Records</div>
+                    <div class="stat-value" id="totalRecords">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Unique Locations</div>
+                    <div class="stat-value" id="uniqueLocations">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Countries</div>
+                    <div class="stat-value" id="uniqueCountries">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Date Range</div>
+                    <div class="stat-value" id="dateRange" style="font-size: 0.875rem;">--</div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label class="filter-label">Country</label>
+                    <select class="filter-select" id="filterCountry">
+                        <option value="">All Countries</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Date From</label>
+                    <input type="date" class="filter-input" id="filterDateFrom">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Date To</label>
+                    <input type="date" class="filter-input" id="filterDateTo">
+                </div>
+                <div class="filter-group" style="justify-content: flex-end;">
+                    <button class="filter-button" id="applyFilters">Apply Filters</button>
+                </div>
+            </div>
+
+            <!-- Location Groups -->
+            <div id="locationGroups" class="location-groups">
+                <!-- Dynamically populated -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state hidden">
+                <i class="bi bi-database"></i>
+                <h3>No Data Available</h3>
+                <p>Historical data will appear here once devices start uploading</p>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <p class="footer-text">Copyrights © Neksha DeSilva and www.nekshadesilva.com. All rights reserved.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // ==========================================
+        // SUPABASE CONFIGURATION
+        // ==========================================
+        const SUPABASE_URL = 'https://uopikbgoyrmtknbomvgo.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcGlrYmdveXJtdGtuYm9tdmdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzNzY5NDAsImV4cCI6MjA4MDk1Mjk0MH0.k-UqQrCkAmyPqE_kNO0xLe564lm55hpDlFTPpTsYOr4';
+        const TABLE_NAME = 'sensor_data';
+
+        // ==========================================
+        // STATE
+        // ==========================================
+        let allData = [];
+        let filteredData = [];
+        let groupedData = {};
+
+        // ==========================================
+        // FETCH ALL HISTORICAL DATA
+        // ==========================================
+        async function fetchHistoricalData() {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?order=timestamp.desc&limit=10000`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                if (!response.ok) throw new Error('Failed to fetch data');
+
+                const data = await response.json();
+                console.log(`Loaded ${data.length} historical records`);
+                return data;
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                return [];
+            }
+        }
+
+        // ==========================================
+        // GROUP DATA BY GPS + COUNTRY
+        // ==========================================
+        function groupDataByLocation(data) {
+            const groups = {};
+
+            data.forEach(record => {
+                // Create location key
+                const lat = record.gps_latitude ? record.gps_latitude.toFixed(4) : 'unknown';
+                const lng = record.gps_longitude ? record.gps_longitude.toFixed(4) : 'unknown';
+                const country = record.country || 'Unknown';
+                const key = `${lat},${lng}|${country}`;
+
+                if (!groups[key]) {
+                    groups[key] = {
+                        latitude: record.gps_latitude,
+                        longitude: record.gps_longitude,
+                        country: country,
+                        records: []
+                    };
+                }
+
+                groups[key].records.push(record);
+            });
+
+            return groups;
+        }
+
+        // ==========================================
+        // UPDATE STATISTICS
+        // ==========================================
+        function updateStatistics(data) {
+            const totalRecords = data.length;
+            const locations = new Set(data.map(r => `${r.gps_latitude},${r.gps_longitude}`));
+            const countries = new Set(data.map(r => r.country).filter(c => c));
+
+            document.getElementById('totalRecords').textContent = totalRecords.toLocaleString();
+            document.getElementById('uniqueLocations').textContent = locations.size;
+            document.getElementById('uniqueCountries').textContent = countries.size;
+
+            if (data.length > 0) {
+                const timestamps = data.map(r => new Date(r.timestamp));
+                const oldest = new Date(Math.min(...timestamps));
+                const newest = new Date(Math.max(...timestamps));
+                document.getElementById('dateRange').textContent = 
+                    `${oldest.toLocaleDateString()} - ${newest.toLocaleDateString()}`;
+            }
+        }
+
+        // ==========================================
+        // POPULATE COUNTRY FILTER
+        // ==========================================
+        function populateCountryFilter(data) {
+            const countries = [...new Set(data.map(r => r.country).filter(c => c))].sort();
+            const select = document.getElementById('filterCountry');
+            
+            countries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country;
+                option.textContent = country;
+                select.appendChild(option);
+            });
+        }
+
+        // ==========================================
+        // RENDER LOCATION GROUPS
+        // ==========================================
+        function renderLocationGroups(groups) {
+            const container = document.getElementById('locationGroups');
+            const emptyState = document.getElementById('emptyState');
+            container.innerHTML = '';
+
+            const groupKeys = Object.keys(groups);
+
+            if (groupKeys.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            groupKeys.forEach((key, index) => {
+                const group = groups[key];
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'location-group';
+
+                const header = document.createElement('div');
+                header.className = 'location-header';
+                header.innerHTML = `
+                    <div>
+                        <div class="location-title">
+                            <i class="bi bi-geo-alt"></i> 
+                            ${group.country} ${group.latitude && group.longitude ? 
+                                `(${group.latitude.toFixed(4)}, ${group.longitude.toFixed(4)})` : 
+                                '(Unknown Location)'}
+                        </div>
+                        <div class="location-meta">
+                            <span><i class="bi bi-graph-up"></i> ${group.records.length} records</span>
+                            <span><i class="bi bi-clock"></i> Latest: ${new Date(group.records[0].timestamp).toLocaleString()}</span>
+                        </div>
+                    </div>
+                    <div class="location-toggle">▼</div>
+                `;
+
+                const tableContainer = document.createElement('div');
+                tableContainer.className = 'data-table-container';
+                tableContainer.innerHTML = `
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Temp (°C)</th>
+                                <th>Humidity (%)</th>
+                                <th>Pressure (hPa)</th>
+                                <th>Solar (W/m²)</th>
+                                <th>Heat Flux (W/m²)</th>
+                                <th>ΔT (°C)</th>
+                                <th>IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${group.records.slice(0, 50).map(record => `
+                                <tr>
+                                    <td>${new Date(record.timestamp).toLocaleString()}</td>
+                                    <td>${record.temperature.toFixed(1)}</td>
+                                    <td>${record.humidity.toFixed(0)}</td>
+                                    <td>${record.air_pressure.toFixed(1)}</td>
+                                    <td>${record.solar_radiation.toFixed(0)}</td>
+                                    <td>${record.heat_flux.toFixed(1)}</td>
+                                    <td>${record.delta_temperature.toFixed(2)}</td>
+                                    <td>${record.ip_address || 'N/A'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    ${group.records.length > 50 ? `<p style="text-align:center;padding:1rem;color:#888;">Showing 50 of ${group.records.length} records</p>` : ''}
+                `;
+
+                header.addEventListener('click', () => {
+                    const toggle = header.querySelector('.location-toggle');
+                    tableContainer.classList.toggle('open');
+                    toggle.classList.toggle('open');
+                });
+
+                groupDiv.appendChild(header);
+                groupDiv.appendChild(tableContainer);
+                container.appendChild(groupDiv);
+            });
+        }
+
+        // ==========================================
+        // APPLY FILTERS
+        // ==========================================
+        function applyFilters() {
+            const country = document.getElementById('filterCountry').value;
+            const dateFrom = document.getElementById('filterDateFrom').value;
+            const dateTo = document.getElementById('filterDateTo').value;
+
+            filteredData = allData.filter(record => {
+                if (country && record.country !== country) return false;
+                
+                if (dateFrom) {
+                    const recordDate = new Date(record.timestamp);
+                    const filterDate = new Date(dateFrom);
+                    if (recordDate < filterDate) return false;
+                }
+                
+                if (dateTo) {
+                    const recordDate = new Date(record.timestamp);
+                    const filterDate = new Date(dateTo);
+                    filterDate.setHours(23, 59, 59, 999);
+                    if (recordDate > filterDate) return false;
+                }
+                
+                return true;
+            });
+
+            groupedData = groupDataByLocation(filteredData);
+            updateStatistics(filteredData);
+            renderLocationGroups(groupedData);
+        }
+
+        // ==========================================
+        // INITIALIZATION
+        // ==========================================
+        async function init() {
+            console.log('Initializing datasets page...');
+
+            // Fetch data
+            allData = await fetchHistoricalData();
+            filteredData = allData;
+
+            // Populate UI
+            groupedData = groupDataByLocation(filteredData);
+            updateStatistics(filteredData);
+            populateCountryFilter(allData);
+            renderLocationGroups(groupedData);
+
+            // Hide loading screen
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('page').classList.remove('hidden');
+
+            console.log('Datasets page loaded');
+        }
+
+        // Event listeners
+        document.getElementById('applyFilters').addEventListener('click', applyFilters);
+
+        // Start
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>

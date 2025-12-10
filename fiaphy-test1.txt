@@ -1,0 +1,803 @@
+/*
+ * FiaPhy DTDSS - OPTIMIZED TRANSMISSION
+ * - FEATURES: 
+ * 1. Auto-Redirects browser to new IP after connection.
+ * 2. Fixed Infinite Loading Screen (Safety Timeout added).
+ * 3. Robust Wi-Fi Connection logic.
+ */
+
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+#include <FiaPhy.h>
+
+// ==========================================
+// 1. WIFI CONFIGURATION
+// ==========================================
+#define WIFI_SSID "FiaPhy-Monitor"
+#define WIFI_PASS "12345678"
+#define WIFI_PORT 80
+
+// ==========================================
+// 2. PHYSICS CONFIGURATION
+// ==========================================
+#define PIN_SDA 4 // GP4
+#define PIN_SCL 5 // GP5
+#define LED_PIN LED_BUILTIN 
+
+const float FILTER_FACTOR = 0.20f; 
+const float LATITUDE = 6.9271f;
+const float LONGITUDE = 79.8612f;
+const float ALTITUDE_M = 5.0f;
+
+const unsigned long SAMPLE_INTERVAL_MS = 1000;
+unsigned long last_trigger_time = 0;
+
+// State variables for non-blocking read
+bool waiting_for_sensor_read = false;
+unsigned long sensor_read_start_time = 0;
+
+// GLOBAL IP STORAGE (For Redirect)
+String currentStationIP = "0.0.0.0";
+
+// --- OBJECTS ---
+Adafruit_BME280 bme_ref;  // 0x76 
+Adafruit_BME280 bme_flux; // 0x77 
+FiaPhy::DTDSS dtdss;      
+
+// --- STORAGE ---
+struct FilteredData {
+    float temp;
+    float hum;
+    float press;
+};
+FilteredData data_ref = {0, 0, 0};
+FilteredData data_flux = {0, 0, 0};
+
+float res_ghi = 0;
+float res_flux = 0;
+float res_delta_t = 0;
+bool data_valid = false;
+
+// ==========================================
+// 3. EMBEDDED WEBSITE RESOURCES
+// ==========================================
+
+const char PROGMEM LOGO_DATA_URI[] = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAWMAAACSAQMAAACqtTmqAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAGUExURff5+a2xr3mtFNwAAAACdFJOU/0COY8z5AAAAqlJREFUWMPt2LuZnDAQAODB+DuFlEByfZDa1bgEVIOLcaw+LqEEhQqwsNADPXaEhj2+7wIvGcy/u1o9kGZgu3At8NL/uQa4oBcARtYazDW7Ryv4i5no7B/1qZZ7dKhqBV2qxR7tiFq78EzTyoXHmpa+x5yWIUzSwoV7mg7xml78f7Jah/hE0SrEx7qeDi1DfKhokeolxglahHjnNIuzyGnuG2k1h7RTWvrANriG6YVrHfWEa/jmnu16jXqs6LeoVdQD3m6jWdCypTUMUS9Rs7YWUfdV3SO6Q/UKIz80v6QhuVCtjO681qmecT2J5/Sa6gnTEia3Iks9trQi6BnXA6aXXc9OS4LecM0wLXY0hY89rfuKVnRthl3ZZWW0eF53Fe0Wq9G8qc0v3qEB0dpobR+ieig1ixo+oedHbR/YRX+DZojmTuvmd9txtIv+Bl20RO5aAKanuKqjnm7X87EaJ/9Bmp4Jerukw3cLCI3/am2H0Q7o/RpIOvSg3xeHin7btr9/Pn4RdT5jddxzSZr5pfxZ/bga/P3eHsJK8/dON98QqqFZob//fP/9Yx8jkj5ev+h7MNcyHdvmG/k2jewNSzonL2rxvEb2SxGn0GXd2rl5XbMTPVLOJycaOfv4jE6aGOFc5bVC9OOZTR/p20A4D0bNCGfNQjfOseFWO71RdU84f4dFHfT52V6FV4AJtvOGE91jesz0eb4jg+ZAyKVKrcqsLtOLS1vt1obmgDU9F/nl3NYbnGW6ItRVhM81OEkvXou0ux/1lusyn880D9p0JVorONdrUYfIdCjwHFqnHVjVZnq5jIrn9ZOGLmozqQ7LMtFF3QfX5vkCSRFkRDUr9ZbXq1K9IlrEZle1aRNaZ8v18KDzGl66z6t4d+hr9cEtTodXPfalX/rL9T/Jf3kVf6yvZwAAAABJRU5ErkJggg==";
+
+const char PROGMEM HTML_PART_1[] = R"====(
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiaphy - Environmental Monitoring System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { font-size: 16px; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #000000; color: #ffffff; line-height: 1.5; }
+        .loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: #000000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rem; z-index: 9999; }
+        .loading-logo { width: 80px; height: auto; filter: brightness(0) invert(1); }
+        .spinner { position: relative; width: 60px; height: 60px; }
+        .spinner:before { content: ""; display: block; padding-top: 100%; }
+        .circular { animation: rotate 1s linear infinite; height: 100%; width: 100%; position: absolute; top: 0; bottom: 0; left: 0; right: 0; margin: auto; }
+        .path { stroke: #ffffff; stroke-dasharray: 1, 200; stroke-dashoffset: 0; animation: dash 1.5s ease-in-out infinite; stroke-linecap: round; }
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
+        @keyframes dash { 0% { stroke-dasharray: 1, 200; stroke-dashoffset: 0; } 50% { stroke-dasharray: 89, 200; stroke-dashoffset: -35px; } 100% { stroke-dasharray: 89, 200; stroke-dashoffset: -124px; } }
+        .dashboard { min-height: 100vh; display: flex; flex-direction: column; opacity: 1; transition: opacity 0.3s ease; }
+        .dashboard.hidden { display: none; }
+        .header { background: #000000; padding: 1rem 0; }
+        .header-content { max-width: 1400px; margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+        .header-brand { display: flex; align-items: center; gap: 0.75rem; }
+        .brand-logo { width: 4rem; height: auto; filter: brightness(0) invert(1); }
+        .brand-info { display: flex; flex-direction: column; }
+        .brand-title { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
+        .connection-status { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: #111111; border-radius: 20px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #888888; animation: pulse 2s ease-in-out infinite; }
+        .connection-status.connected .status-dot { background: #ffffff; }
+        .connection-status.disconnected .status-dot { background: #666666; animation: none; }
+        .status-text { font-size: 0.875rem; font-weight: 500; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .main-content { flex: 1; max-width: 1400px; width: 100%; margin: 0 auto; padding: 2rem 1.5rem; }
+        .no-device { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; text-align: center; gap: 1rem; }
+        .no-device.hidden { display: none; }
+        .data-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 3rem; }
+        .data-card { background: #111111; padding: 1.5rem; border-radius: 12px; display: flex; flex-direction: column; gap: 1rem; transition: background 0.2s ease; }
+        .data-card:hover { background: #161616; }
+        .data-card-header { display: flex; align-items: center; gap: 0.5rem; }
+        .data-label { font-size: 0.875rem; font-weight: 500; color: #888888; letter-spacing: 0.02em; }
+        .data-value { display: flex; align-items: baseline; gap: 0.5rem; }
+        .value-number { font-size: 2.5rem; font-weight: 300; letter-spacing: -0.03em; color: #ffffff; line-height: 1; }
+        .value-unit { font-size: 1rem; font-weight: 500; color: #666666; }
+        .footer { background: #000000; padding: 2rem 0; margin-top: auto; border-top: 1px solid #111111; }
+        .footer-content { max-width: 1400px; margin: 0 auto; padding: 0 1.5rem; }
+        .footer-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; margin-bottom: 2rem; }
+        .footer-logo img { width: 50%; max-width: 150px; height: auto; 
+            /* Violet-Red Filter */
+            filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(280deg);
+        }
+        .footer-column h4 { font-size: 0.875rem; font-weight: 600; margin-bottom: 1rem; color: #ffffff; }
+        .footer-column ul { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+        .footer-column a { font-size: 0.875rem; color: #888888; text-decoration: none; }
+        .footer-column a:hover { color: #ffffff; }
+        .footer-bottom { border-top: 1px solid #111111; padding-top: 2rem; text-align: center; }
+        .footer-copyright p { font-size: 0.875rem; color: #666666; }
+        .hidden { display: none !important; }
+        @media (max-width: 768px) { .data-grid { grid-template-columns: 1fr; } }
+        /* ADDED CSS FOR MODAL */
+        .conn-btn { background: #333; color: white; border: 1px solid #555; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; margin-top: 10px; font-size: 0.8rem; }
+        .conn-btn:hover { background: #444; }
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 10000; }
+        .modal.hidden { display: none; }
+        .modal-content { background: #111; padding: 2rem; border-radius: 12px; border: 1px solid #333; width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 1rem; }
+        .modal-content input { background: #222; border: 1px solid #444; color: white; padding: 0.8rem; border-radius: 6px; outline: none; }
+        .modal-actions { display: flex; gap: 1rem; margin-top: 1rem; }
+        .btn-pri { background: white; color: black; border: none; padding: 0.8rem; flex: 1; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .btn-sec { background: transparent; color: #888; border: 1px solid #444; padding: 0.8rem; flex: 1; border-radius: 6px; cursor: pointer; }
+        .status-msg { font-size: 0.8rem; color: #aaa; text-align: center; }
+    </style>
+</head>
+<body>
+    <div id="loadingScreen" class="loading-screen">
+        <img alt="Fiaphy Logo" class="loading-logo" src=")====";
+
+// ... INSERT LOGO_DATA_URI HERE ...
+
+const char PROGMEM HTML_PART_2[] = R"====(" />
+        <div class="spinner"><svg class="circular" viewBox="25 25 50 50"><circle class="path" cx="50" cy="50" r="20" fill="none" stroke-width="2" stroke-miterlimit="10"/></svg></div>
+    </div>
+    <div id="dashboard" class="dashboard hidden">
+        <header class="header">
+            <div class="header-content">
+                <div class="header-brand">
+                        <img alt="Logo" class="brand-logo" src=")====";
+
+// ... INSERT LOGO_DATA_URI HERE ...
+
+const char PROGMEM HTML_PART_3[] = R"====(" />
+                    <div class="brand-info"><h2 class="brand-title">Cloud A</h2></div>
+                </div>
+                <div class="header-status">
+                    <div class="connection-status" id="connectionStatus"><span class="status-dot"></span><span class="status-text">Not Connected</span></div>
+                </div>
+            </div>
+        </header>
+        <header class="header-content" style="margin-top: 2rem; justify-content: flex-start;align-items: flex-start; width: 100%;">
+                <img style="width: 5rem;" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAe0AAACJAQMAAAA7aPJAAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAGUExUReDg4HNzc9Yh+BAAAAACdFJOU/0DTogDcgAAA1lJREFuN7t2M21nSAQAGAIC7LICR3EUkxFKeFpaZZiBYm7sCAYmAGdwX/NJufo4j6vvM+rOAwjYnyyWfHyl7/85S9/+cvPcF98/xU/fvzZ5VbgJr0Q9dwEWwV7p3lTcH3Mhx0uHvIm7MlTXDnC88HqGTdh7wHXl/hYcnXI+z0uz3O7wdUprinPB8VD3vTnubzBu+mZke0KVz/Dxpv6eCO/A6+PuV42IeqB6+u8Az7c5xrHXd1d4/gVP13irTzBIUAcDHLO458RMlfoDVnwNnPorh5G6cyrsDfEQ3A49ck2x2HGeRcPIW9XuJm5SxmuJdzA0GkT13vcpgyHB2PqbsVXOCNCkf95jesUrHU66IB/gTN2G1xQ3qUESfnnmXvs/1UOTzglSMrxgrr0WOs9Lhi3hPebPKWlwH0eu3iRw8wrCBhLkvExDx3ZZA4pc6AzFuMqcOPwwjMPHdkIzmXBfcEbeALAY1PmBn643+GhuyBbDhCiOdPGbotBD0005Fc5XKHyjMceQ05jdoXngTtxOcaW8BXva5vHkKkWPN6Gptwc8p5yDxk8cCgeaMyWPLeJ6fnjnsm89kvuCu5byg2KduL1Pgeo80FRoWghW1W0gFjl+LMzrxnnVRbjsb1O6WLmDZZbLcTyBk8XhOmYcZmakRteaXAeL9MVXE8cEhCfLoFbylNNYtxU1s28O+ZpWjdzTYr1EnLN57PMx4lDpvw+8SrzuBvGMYvZJYfUEieGOSmd5g5zgxkZt4QrFrOrXI+Jj5zXYSB+YjGLfOAcArxa54LF7JJ/wOkF5zJxu8HlxCFCPaRVxv3Ex0PuGB8Yl9vcAod7rObgzhxOy0s84H3JOwjeO9xhfuBcJe7LwrXk8V0q1kEL7jI3K1xRnmfjf8T7iY+Cx2zBB8ZVwXEqrhe8I3xcFvGEt6e4KrgmvFnheuZxvOsdPu5xBdxAFcY4jqBul/dQYAjxjfGOcnnAY6r8mErIgpdvNVaUBbXF1/hxwWVRjK9zj7Mr4ybztngtWVl46fizYRvm2fx2W19dtxGPuJ8K1Vs8lcN3+YAxO5A1lSu8fcJdTtP9bS6fcfWMa8qvLffZnCjv8+oZr+lSx3XePOLywUqpFYtFiCt8KJL8Za7eNeqXv/zl/yf/Cw9X9WFJ20MkAAAAAElFTkSuQmCC" alt="" />
+        </header> 
+        <main class="main-content">
+            <div id="noDevice" class="no-device hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM5 8h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><path d="M8 10.5a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2a.5.5 0 0 1 .5-.5z"/></svg>
+                <h2>No Device Connected</h2><p>Waiting for device connection...</p>
+            </div>
+            <div id="dataGrid" class="data-grid">
+                <div class="data-card"><div class="data-card-header"><span class="data-label">Temperature</span></div><div class="data-value"><span id="temperature" class="value-number">--</span><span class="value-unit">°C</span></div></div>
+                <div class="data-card"><div class="data-card-header"><span class="data-label">Humidity</span></div><div class="data-value"><span id="humidity" class="value-number">--</span><span class="value-unit">%</span></div></div>
+                <div class="data-card"><div class="data-card-header"><span class="data-label">Air Pressure</span></div><div class="data-value"><span id="airPressure" class="value-number">--</span><span class="value-unit">hPa</span></div></div>
+                <div class="data-card"><div class="data-card-header"><span class="data-label">Solar Radiation</span></div><div class="data-value"><span id="solarRadiation" class="value-number">--</span><span class="value-unit">W/m²</span></div></div>
+                <div class="data-card"><div class="data-card-header"><span class="data-label">Heat Flux</span></div><div class="data-value"><span id="heatFlux" class="value-number">--</span><span class="value-unit">W/m²</span></div></div>
+                <div class="data-card"><div class="data-card-header"><span class="data-label">Delta Temperature</span></div><div class="data-value"><span id="deltaTemperature" class="value-number">--</span><span class="value-unit">°C</span></div></div>
+            </div>
+            <div class="privacy-notice"><p><strong>Data Privacy:</strong> These measurements are local and not connected to the internet.</p></div>
+            <div class="learn-more-section"><p><a style="color:white; " href="https://fiaos.org/about" target="_blank" rel="noopener">Learn more about this project →</a></p></div>
+        </main>
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-columns">
+                    <div class="footer-column footer-branding"><p class="footer-tagline">Future is Autonomous.</p>
+                    <div class="footer-logo">
+                        <img src=")====";
+
+// ... INSERT LOGO_DATA_URI HERE (Footer) ...
+
+const char PROGMEM HTML_PART_4[] = R"====(" alt="" />
+                    </div></div>
+                    <div class="footer-column"><h4>Project</h4><ul><li><a href="https://fiaos.org/research/">Research</a></li><li><a href="https://fiaos.org/docs/">Documentation</a></li></ul></div>
+                    <div class="footer-column"><h4>Contact</h4><ul><li><a href="mailto:research@fiaos.org">research@fiaos.org</a></li></ul></div>
+                    <div class="footer-column">
+                        <button id="btnConnect" class="conn-btn">Connect Cloud</button>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <div class="footer-copyright"><p>Copyrights © Neksha DeSilva and www.nekshadesilva.com. All rights reserved.</p></div>
+                </div>
+            </div>
+        </footer>
+
+        <div id="wifiModal" class="modal hidden">
+            <div class="modal-content">
+                <h3>Connect to Internet</h3>
+                <p>Enter your Router or Hotspot credentials.</p>
+                <input type="text" id="ssid" placeholder="Wi-Fi Name (SSID)" />
+                <input type="password" id="pass" placeholder="Password" />
+                <div class="modal-actions">
+                    <button id="btnCancel" class="btn-sec">Cancel</button>
+                    <button id="btnSave" class="btn-pri">Connect</button>
+                </div>
+                <p id="wifiStatus" class="status-msg"></p>
+            </div>
+        </div>
+
+    </div>
+    
+    <script>
+    // ==================== UI ADDITION FOR MODAL ====================
+    const ModalUI = {
+        init() {
+            const m = document.getElementById('wifiModal');
+            document.getElementById('btnConnect').onclick = () => m.classList.remove('hidden');
+            document.getElementById('btnCancel').onclick = () => m.classList.add('hidden');
+            
+            document.getElementById('btnSave').onclick = async () => {
+                const s = document.getElementById('ssid').value;
+                const p = document.getElementById('pass').value;
+                const stat = document.getElementById('wifiStatus');
+                const btn = document.getElementById('btnSave');
+                
+                if(!s) return;
+                stat.textContent = "Sending credentials... Please wait.";
+                btn.disabled = true;
+
+                try {
+                    // Send via GET request
+                    await fetch(`/api/wifi?ssid=${encodeURIComponent(s)}&pass=${encodeURIComponent(p)}`);
+                    stat.textContent = "Device connecting... Do not leave this page.";
+                    
+                    // START POLLING FOR NEW IP ADDRESS
+                    const checkInterval = setInterval(async () => {
+                        try {
+                            const res = await fetch('/api/data');
+                            const json = await res.json();
+                            
+                            // IF WE GET A VALID NEW IP
+                            if (json.ip && json.ip !== "0.0.0.0" && json.ip !== "192.168.4.1") {
+                                stat.textContent = "Connected! Redirecting to " + json.ip + "...";
+                                clearInterval(checkInterval);
+                                // FORCE REDIRECT TO NEW ADDRESS
+                                setTimeout(() => {
+                                    window.location.href = "http://" + json.ip;
+                                }, 1500);
+                            }
+                        } catch(e) {
+                            // Ignore errors while waiting
+                        }
+                    }, 2000); // Check every 2 seconds
+
+                } catch(e) {
+                    stat.textContent = "Error sending credentials.";
+                    btn.disabled = false;
+                }
+            };
+        }
+    };
+
+    // ==================== API.JS ====================
+    const FiaphyAPI = {
+        config: { apiEndpoint: '/api/data', updateInterval: 2000 },
+        isConnected: false,
+        init() { this.checkConnection(); },
+        async checkConnection() {
+            try { this.isConnected = true; return true; } catch (e) { this.isConnected = false; return false; }
+        },
+        async fetchData() {
+            // Added Timeout to prevent hanging
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), 3000); // 3s Timeout
+            try {
+                const response = await fetch(this.config.apiEndpoint, { signal: controller.signal });
+                clearTimeout(id);
+                if (!response.ok) throw new Error("Network response was not ok");
+                const data = await response.json();
+                this.isConnected = true;
+                return data;
+            } catch (error) {
+                this.isConnected = false;
+                throw error;
+            }
+        },
+        startPolling(callback) {
+            const poll = async () => {
+                try {
+                    const data = await this.fetchData();
+                    if (callback) callback(data);
+                } catch (error) {
+                    if (callback) callback(null, error);
+                }
+            };
+            poll();
+            return setInterval(poll, this.config.updateInterval);
+        },
+        stopPolling(id) { if (id) clearInterval(id); }
+    };
+
+    // ==================== UI.JS ====================
+    const FiaphyUI = {
+        elements: {},
+        init() { this.cacheElements(); ModalUI.init(); },
+        cacheElements() {
+            this.elements = {
+                loadingScreen: document.getElementById('loadingScreen'),
+                dashboard: document.getElementById('dashboard'),
+                noDevice: document.getElementById('noDevice'),
+                dataGrid: document.getElementById('dataGrid'),
+                connectionStatus: document.getElementById('connectionStatus'),
+                statusText: document.querySelector('#connectionStatus .status-text'),
+                temperature: document.getElementById('temperature'),
+                humidity: document.getElementById('humidity'),
+                airPressure: document.getElementById('airPressure'),
+                solarRadiation: document.getElementById('solarRadiation'),
+                heatFlux: document.getElementById('heatFlux'),
+                deltaTemperature: document.getElementById('deltaTemperature')
+            };
+        },
+        hideLoadingScreen() {
+            if (this.elements.loadingScreen) this.elements.loadingScreen.style.display = 'none';
+            if (this.elements.dashboard) this.elements.dashboard.classList.remove('hidden');
+        },
+        updateConnectionStatus(isConnected) {
+            const status = this.elements.connectionStatus;
+            const text = this.elements.statusText;
+            if (!status) return;
+            if (isConnected) { status.classList.add('connected'); status.classList.remove('disconnected'); text.textContent = 'Connected'; }
+            else { status.classList.remove('connected'); status.classList.add('disconnected'); text.textContent = 'Disconnected'; }
+        },
+        toggleNoDevice(show) {
+            if (show) { this.elements.noDevice?.classList.remove('hidden'); this.elements.dataGrid?.classList.add('hidden'); }
+            else { this.elements.noDevice?.classList.add('hidden'); this.elements.dataGrid?.classList.remove('hidden'); }
+        },
+        updateData(data) {
+            if (!data) { this.toggleNoDevice(true); this.updateConnectionStatus(false); return; }
+            this.toggleNoDevice(false);
+            this.updateConnectionStatus(true);
+            this.updateValue('temperature', data.temperature, 1);
+            this.updateValue('humidity', data.humidity, 0);
+            this.updateValue('airPressure', data.airPressure, 1);
+            this.updateValue('solarRadiation', data.solarRadiation, 0);
+            this.updateValue('heatFlux', data.heatFlux, 1);
+            this.updateValue('deltaTemperature', data.deltaTemperature, 2);
+        },
+        updateValue(key, value, decimals) {
+            const el = this.elements[key];
+            if (!el) return;
+            const val = typeof value === 'number' ? value.toFixed(decimals) : '--';
+            el.textContent = val;
+        }
+    };
+
+    // ==================== MAIN.JS ====================
+    const FiaphyApp = {
+        pollingInterval: null,
+        isInitialized: false,
+        async init() {
+            const minLoadTime = 1500;
+            const startTime = Date.now();
+            
+            // Force Loading Screen to hide after max 4 seconds (SAFETY FALLBACK)
+            setTimeout(() => {
+                if(!this.isInitialized) {
+                    FiaphyUI.hideLoadingScreen();
+                    this.isInitialized = true;
+                }
+            }, 4000);
+
+            try {
+                FiaphyUI.init();
+                FiaphyAPI.init();
+                // We don't block on checkConnection anymore, just poll
+                const elapsed = Date.now() - startTime;
+                if (minLoadTime - elapsed > 0) await new Promise(r => setTimeout(r, minLoadTime - elapsed));
+                
+                FiaphyUI.hideLoadingScreen();
+                this.startDataPolling();
+                this.isInitialized = true;
+            } catch (error) { 
+                FiaphyUI.hideLoadingScreen();
+            }
+        },
+        startDataPolling() {
+            this.pollingInterval = FiaphyAPI.startPolling((data, error) => {
+                if (data) FiaphyUI.updateData(data);
+                // Don't show error screen on transient failures to avoid flickering
+            });
+        },
+        stopDataPolling() { if (this.pollingInterval) FiaphyAPI.stopPolling(this.pollingInterval); },
+        handleVisibilityChange() {
+            if (document.hidden) this.stopDataPolling();
+            else if (this.isInitialized) this.startDataPolling();
+        },
+        cleanup() { this.stopDataPolling(); }
+    };
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => FiaphyApp.init());
+    else FiaphyApp.init();
+    document.addEventListener('visibilitychange', () => FiaphyApp.handleVisibilityChange());
+    window.addEventListener('beforeunload', () => FiaphyApp.cleanup());
+    </script>
+</body>
+</html>
+)====";
+
+// ==========================================
+// 4. HELPER FUNCTIONS
+// ==========================================
+
+float apply_filter(float new_val, float old_val) {
+    if (old_val == 0.0f) return new_val;
+    return (old_val * (1.0f - FILTER_FACTOR)) + (new_val * FILTER_FACTOR);
+}
+
+String getUrlParam(String request, String param) {
+    String p = param + "=";
+    int start = request.indexOf(p);
+    if (start == -1) return "";
+    start += p.length();
+    int end = request.indexOf("&", start);
+    if (end == -1) end = request.indexOf(" ", start);
+    String value = request.substring(start, end);
+    value.replace("%20", " ");
+    return value;
+}
+
+void softStartSystem(float t, float h, float p) {
+    Serial.println("Performing Soft-Start Ramp (200 Steps)...");
+    for (int i = 1; i <= 200; i++) { 
+        float factor = (float)i / 200.0f;
+        dtdss.feedReferenceTemperature(t * factor, 0);
+        dtdss.feedReferenceHumidity(h * factor, 0);
+        dtdss.feedReferencePressure(p * factor, 0);
+        dtdss.feedFluxTemperature(t * factor, 0);
+        dtdss.feedFluxHumidity(h * factor, 0);
+        dtdss.feedFluxPressure(p * factor, 0);
+        delay(10); 
+    }
+    Serial.println("Soft-Start Complete.");
+}
+
+// ==========================================
+// 5. WI-FI FUNCTIONS (UPDATED FOR STABILITY)
+// ==========================================
+
+void sendAT(String command, int waitMs) {
+    Serial1.println(command);
+    unsigned long start = millis();
+    while (millis() - start < waitMs) {
+        while (Serial1.available()) Serial.write(Serial1.read()); 
+    }
+}
+
+// Helper: Block processing until OK or ERROR
+bool sendATWaitForResponse(String command, int timeout) {
+    Serial1.println(command);
+    unsigned long start = millis();
+    while(millis() - start < timeout) {
+        if(Serial1.available()) {
+            String resp = Serial1.readString();
+            Serial.print(resp); // Echo for debugging
+            if(resp.indexOf("OK") != -1) return true;
+            if(resp.indexOf("ERROR") != -1) return false;
+            if(resp.indexOf("FAIL") != -1) return false;
+        }
+    }
+    return false;
+}
+
+bool sendChunked(int connectionId, const char* data, bool isProgMem) {
+    int len = isProgMem ? strlen_P(data) : strlen(data);
+    int chunkSize = 512; 
+    
+    for (int i = 0; i < len; i += chunkSize) {
+        int end = (i + chunkSize < len) ? i + chunkSize : len;
+        int chunkLen = end - i;
+        
+        char buf[chunkSize + 1];
+        if (isProgMem) {
+            strncpy_P(buf, data + i, chunkLen);
+        } else {
+            strncpy(buf, data + i, chunkLen);
+        }
+        buf[chunkLen] = '\0';
+
+        Serial1.print("AT+CIPSEND=");
+        Serial1.print(connectionId);
+        Serial1.print(",");
+        Serial1.println(chunkLen);
+        
+        unsigned long waitPrompt = millis();
+        bool prompt = false;
+        while (millis() - waitPrompt < 1000) { 
+            if (Serial1.find(">")) { prompt=true; break; } 
+        }
+        
+        if(prompt) {
+            Serial1.print(buf);
+        } else {
+            Serial.println("Send Error: Aborting!");
+            return false;
+        }
+        delay(100); 
+    }
+    return true;
+}
+
+// Helper to extract IP from CIFSR response
+String extractIP(String response) {
+    // Example: +CIFSR:STAIP,"192.168.1.45"
+    int staIpIdx = response.indexOf("STAIP,\"");
+    if(staIpIdx != -1) {
+        int start = staIpIdx + 7; // Skip STAIP,"
+        int end = response.indexOf("\"", start);
+        if(end != -1) return response.substring(start, end);
+    }
+    return "0.0.0.0";
+}
+
+void initESP() {
+    Serial1.begin(115200); 
+    Serial1.setTimeout(50); 
+    delay(1000);
+    
+    Serial.println("Initializing Wi-Fi...");
+    sendAT("AT+RST", 2000);        
+    sendAT("AT+CWMODE=2", 1000); 
+    String apCmd = "AT+CWSAP=\"" + String(WIFI_SSID) + "\",\"" + String(WIFI_PASS) + "\",5,3";
+    Serial1.println(apCmd);
+    delay(2000); 
+    sendAT("AT+CIPMUX=1", 1000);   
+    sendAT("AT+CIPSERVER=1," + String(WIFI_PORT), 1000);
+    sendAT("AT+CIPSTO=2", 1000); 
+}
+
+void checkWebClients() {
+    if (Serial1.available()) {
+        String buffer = "";
+        char c;
+        unsigned long startTime = millis();
+        while (millis() - startTime < 100) { 
+            if (Serial1.available()) {
+                c = Serial1.read();
+                buffer += c;
+            } else { delay(1); }
+        }
+        
+        if (buffer.indexOf("+IPD,") != -1) {
+            digitalWrite(LED_PIN, HIGH); 
+            
+            int startIp = buffer.indexOf("+IPD,") + 5;
+            int endIp = buffer.indexOf(",", startIp);
+            String idStr = buffer.substring(startIp, endIp);
+            int connectionId = idStr.toInt();
+            
+            int getPos = buffer.indexOf("GET");
+            String request = "";
+            if (getPos != -1) request = buffer.substring(getPos);
+
+            // --- DATA API ---
+            if (request.indexOf("/api/data") != -1) {
+                String json = "{";
+                json += "\"temperature\":" + String(data_ref.temp, 1) + ",";
+                json += "\"humidity\":" + String(data_ref.hum, 0) + ",";
+                json += "\"airPressure\":" + String(data_ref.press, 1) + ",";
+                json += "\"solarRadiation\":" + String(res_ghi, 0) + ",";
+                json += "\"heatFlux\":" + String(res_flux, 1) + ",";
+                json += "\"deltaTemperature\":" + String(res_delta_t, 2) + ",";
+                // SEND THE NEW IP IN THE DATA PACKET
+                json += "\"ip\":\"" + currentStationIP + "\"";
+                json += "}";
+
+                String header = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n";
+                header += "Content-Length: " + String(json.length()) + "\r\n\r\n";
+                
+                Serial1.print("AT+CIPSEND=");
+                Serial1.print(connectionId);
+                Serial1.print(",");
+                Serial1.println(header.length());
+                if(Serial1.find(">")) Serial1.print(header);
+                delay(100);
+
+                sendChunked(connectionId, json.c_str(), false);
+                Serial1.print("AT+CIPCLOSE=");
+                Serial1.println(connectionId);
+                
+            } 
+            // --- NEW: WIFI CONNECT API (FIXED LOGIC) ---
+            else if (request.indexOf("/api/wifi") != -1) {
+                 String ssid = getUrlParam(request, "ssid");
+                 String pass = getUrlParam(request, "pass");
+                 
+                 // 1. Send Response FIRST
+                 String resp = "{\"status\":\"Connecting...\"}";
+                 String header = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n";
+                 header += "Content-Length: " + String(resp.length()) + "\r\n\r\n";
+                 
+                 Serial1.print("AT+CIPSEND=");
+                 Serial1.print(connectionId);
+                 Serial1.print(",");
+                 Serial1.println(header.length());
+                 if(Serial1.find(">")) Serial1.print(header);
+                 delay(50);
+                 sendChunked(connectionId, resp.c_str(), false);
+                 Serial1.print("AT+CIPCLOSE=");
+                 Serial1.println(connectionId);
+                 
+                 // 2. WAIT FOR CLOSE TO COMPLETE
+                 delay(1000); 
+                 while(Serial1.available()) Serial1.read(); // Flush junk
+
+                 // 3. EXECUTE CONNECTION (BLOCKING)
+                 if(ssid.length() > 0) {
+                     Serial.print("\nAttempting connection to: "); Serial.println(ssid);
+                     
+                     // Enable Hybrid Mode
+                     sendATWaitForResponse("AT+CWMODE=3", 2000);
+                     delay(1000);
+                     
+                     // Send Connection Command and WAIT
+                     String connectCmd = "AT+CWJAP=\"" + ssid + "\",\"" + pass + "\"";
+                     
+                     // Wait up to 15 seconds for connection result
+                     if(sendATWaitForResponse(connectCmd, 15000)) {
+                         Serial.println("\nSUCCESS: Wi-Fi Connected!");
+                         
+                         // --- GET NEW IP ADDRESS ---
+                         Serial.println("GETTING NEW IP ADDRESS...");
+                         delay(500);
+                         Serial1.println("AT+CIFSR");
+                         unsigned long ipStart = millis();
+                         String ipResponse = "";
+                         while(millis() - ipStart < 2000) { 
+                            if(Serial1.available()) {
+                                char c = Serial1.read();
+                                ipResponse += c;
+                                Serial.write(c);
+                            }
+                         }
+                         // PARSE IP FROM RESPONSE
+                         currentStationIP = extractIP(ipResponse);
+                         Serial.print("NEW IP DETECTED: "); Serial.println(currentStationIP);
+                         // --------------------------
+
+                     } else {
+                         Serial.println("\nFAILURE: Wi-Fi Connection Failed.");
+                         currentStationIP = "0.0.0.0"; // Reset on fail
+                     }
+                     
+                     // Flush any remaining data to prevent next loop reading junk
+                     while(Serial1.available()) Serial1.read();
+                 }
+            }
+            // --- WEBSITE RESPONSE ---
+            else {
+                int totalLen = strlen_P(HTML_PART_1) + strlen_P(LOGO_DATA_URI) + 
+                               strlen_P(HTML_PART_2) + strlen_P(LOGO_DATA_URI) + 
+                               strlen_P(HTML_PART_3) + strlen_P(LOGO_DATA_URI) +
+                               strlen_P(HTML_PART_4);
+
+                String header = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n";
+                header += "Content-Length: " + String(totalLen) + "\r\n\r\n";
+                
+                Serial1.print("AT+CIPSEND=");
+                Serial1.print(connectionId);
+                Serial1.print(",");
+                Serial1.println(header.length());
+                
+                if(Serial1.find(">")) Serial1.print(header);
+                delay(100);
+
+                if(sendChunked(connectionId, HTML_PART_1, true)) {
+                    if(sendChunked(connectionId, LOGO_DATA_URI, true)) {
+                        if(sendChunked(connectionId, HTML_PART_2, true)) {
+                            if(sendChunked(connectionId, LOGO_DATA_URI, true)) {
+                                if(sendChunked(connectionId, HTML_PART_3, true)) {
+                                    if(sendChunked(connectionId, LOGO_DATA_URI, true)) {
+                                        sendChunked(connectionId, HTML_PART_4, true);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Serial1.print("AT+CIPCLOSE=");
+                Serial1.println(connectionId);
+            }
+            digitalWrite(LED_PIN, LOW); 
+        }
+    }
+}
+
+// ==========================================
+// 6. SETUP
+// ==========================================
+
+void setup() {
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, HIGH); 
+    
+    Serial.begin(115200); 
+    delay(2000);
+    Serial.println("FiaPhy System Starting...");
+
+    Wire.setSDA(PIN_SDA);
+    Wire.setSCL(PIN_SCL);
+    Wire.begin();
+
+    if (!bme_ref.begin(0x76) || !bme_flux.begin(0x77)) {
+        Serial.println("SENSOR ERROR!");
+        while (1) { digitalWrite(LED_PIN, !digitalRead(LED_PIN)); delay(100); }
+    }
+
+    bme_ref.setSampling(Adafruit_BME280::MODE_FORCED, Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::FILTER_OFF);
+    bme_flux.setSampling(Adafruit_BME280::MODE_FORCED, Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::FILTER_OFF);
+
+    dtdss.configure(LATITUDE, LONGITUDE, ALTITUDE_M);
+    
+    bme_ref.takeForcedMeasurement();
+    bme_flux.takeForcedMeasurement();
+    delay(100);
+
+    data_ref.temp = bme_ref.readTemperature();
+    data_ref.hum = bme_ref.readHumidity();
+    data_ref.press = bme_ref.readPressure() / 100.0f;
+    
+    softStartSystem(data_ref.temp, data_ref.hum, data_ref.press);
+    
+    initESP();
+    digitalWrite(LED_PIN, LOW); 
+    Serial.println("SYSTEM READY. CONNECT TO: " WIFI_SSID);
+}
+
+// ==========================================
+// 7. MAIN LOOP
+// ==========================================
+
+void loop() {
+    checkWebClients();
+
+    unsigned long current_time = millis();
+
+    if (!waiting_for_sensor_read && (current_time - last_trigger_time >= SAMPLE_INTERVAL_MS)) {
+        bme_ref.takeForcedMeasurement();
+        bme_flux.takeForcedMeasurement();
+        sensor_read_start_time = current_time;
+        waiting_for_sensor_read = true;
+    }
+
+    if (waiting_for_sensor_read && (current_time - sensor_read_start_time >= 50)) {
+        last_trigger_time = current_time; 
+        waiting_for_sensor_read = false;
+
+        float raw_ref_t = bme_ref.readTemperature();
+        float raw_ref_h = bme_ref.readHumidity();
+        float raw_ref_p = bme_ref.readPressure() / 100.0f;
+        float raw_flux_t = bme_flux.readTemperature();
+        float raw_flux_h = bme_flux.readHumidity();
+        float raw_flux_p = bme_flux.readPressure() / 100.0f;
+
+        data_ref.temp = apply_filter(raw_ref_t, data_ref.temp);
+        data_ref.hum = apply_filter(raw_ref_h, data_ref.hum);
+        data_ref.press = apply_filter(raw_ref_p, data_ref.press);
+        data_flux.temp = apply_filter(raw_flux_t, data_flux.temp);
+        data_flux.hum = apply_filter(raw_flux_h, data_flux.hum);
+        data_flux.press = apply_filter(raw_flux_p, data_flux.press);
+
+        dtdss.feedReferenceTemperature(data_ref.temp, 0);
+        dtdss.feedReferenceHumidity(data_ref.hum, 0);
+        dtdss.feedReferencePressure(data_ref.press, 0);
+        dtdss.feedFluxTemperature(data_flux.temp, 0);
+        dtdss.feedFluxHumidity(data_flux.hum, 0);
+        dtdss.feedFluxPressure(data_flux.press, 0);
+
+        if (dtdss.isFrameReady()) {
+            FiaPhy::RadiationResult result = dtdss.compute();
+            if (result.valid) {
+                res_ghi = result.ghi_Wm2;          
+                res_flux = result.heat_flux_Wm2;   
+                res_delta_t = result.temp_differential_C;
+                data_valid = true;
+            }
+        }
+    }
+}

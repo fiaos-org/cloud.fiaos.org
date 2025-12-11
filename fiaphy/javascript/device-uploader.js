@@ -29,6 +29,8 @@
     // ==========================================
     const UPLOAD_INTERVAL = 2000; // 2 seconds (matches ESP8266 data refresh)
     const DEVICE_ID = 'fiaphy-' + Math.random().toString(36).substr(2, 9); // Generate unique device ID
+    const MAX_RETRIES = 5; // Maximum number of consecutive failures before slowing down
+    const BACKOFF_INTERVAL = 30000; // 30 seconds between retries after max failures
     
     // ==========================================
     // STATE MANAGEMENT
@@ -37,6 +39,8 @@
     let ipInfo = { ip: null, country: null };
     let uploadInterval = null;
     let isUploading = false;
+    let consecutiveFailures = 0;
+    let isBackedOff = false;
 
     // ==========================================
     // GPS LOCATION RETRIEVAL
@@ -44,6 +48,12 @@
     function requestGPSLocation() {
         if (!navigator.geolocation) {
             console.warn('[Device Uploader] GPS not available');
+            return;
+        }
+
+        // Check if we're on a secure context (HTTPS or localhost)
+        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+            console.warn('[Device Uploader] GPS requires HTTPS. Skipping location request.');
             return;
         }
 
@@ -55,6 +65,7 @@
             },
             (error) => {
                 console.warn('[Device Uploader] GPS error:', error.message);
+                console.warn('[Device Uploader] Data will upload without GPS coordinates');
             },
             {
                 enableHighAccuracy: true,
@@ -97,13 +108,19 @@
     // FETCH SENSOR DATA FROM DEVICE
     // ==========================================
     async function fetchDeviceData() {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+        
         try {
             const response = await fetch('/api/data', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                signal: controller.signal
             });
+
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 throw new Error('Device API error: ' + response.status);
@@ -123,8 +140,14 @@
 
             return data;
         } catch (error) {
-            console.error('[Device Uploader] Failed to fetch device data:', error);
+            if (error.name === 'AbortError') {
+                console.error('[Device Uploader] Device API timeout (5s)');
+            } else {
+                console.error('[Device Uploader] Failed to fetch device data:', error.message);
+            }
             throw error;
+        } finally {
+            clearTimeout(timeoutId);
         }
     }
 
@@ -167,13 +190,52 @@
 
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`Supabase error ${response.status}: ${errorText}`);
+                let errorDetail = errorText;
+                
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    errorDetail = errorJson.message || errorText;
+                    
+                    // Special handling for table not found error
+                    if (errorJson.code === 'PGRST205') {
+                        console.error('[Device Uploader] ⚠️ DATABASE NOT SET UP!');
+                        console.error('[Device Uploader] Please run supabase-schema.sql in your Supabase dashboard');
+                        console.error('[Device Uploader] Instructions: https://github.com/YourRepo/cloud.fiaos.org/blob/main/SETUP-GUIDE.md');
+                        
+                        // Back off after table not found errors
+                        consecutiveFailures++;
+                        if (consecutiveFailures >= MAX_RETRIES && !isBackedOff) {
+                            console.warn(`[Device Uploader] Too many failures (${consecutiveFailures}). Backing off to ${BACKOFF_INTERVAL/1000}s intervals...`);
+                            switchToBackoffMode();
+                        }
+                        throw new Error(`Database table not found. Please run supabase-schema.sql first.`);
+                    }
+                } catch (parseError) {
+                    // Error text is not JSON, use as-is
+                }
+                
+                consecutiveFailures++;
+                throw new Error(`Supabase error ${response.status}: ${errorDetail}`);
             }
 
+            // Success! Reset failure counter
+            consecutiveFailures = 0;
+            if (isBackedOff) {
+                console.log('[Device Uploader] ✓ Connection restored! Returning to normal intervals...');
+                switchToNormalMode();
+            }
+            
             console.log('[Device Uploader] ✓ Data uploaded successfully at', new Date().toISOString());
 
         } catch (error) {
             console.error('[Device Uploader] ✗ Upload failed:', error);
+            consecutiveFailures++;
+            
+            // Back off after too many consecutive failures
+            if (consecutiveFailures >= MAX_RETRIES && !isBackedOff) {
+                console.warn(`[Device Uploader] ${consecutiveFailures} consecutive failures. Backing off to ${BACKOFF_INTERVAL/1000}s intervals...`);
+                switchToBackoffMode();
+            }
         } finally {
             isUploading = false;
         }
@@ -192,7 +254,54 @@
             
         } catch (error) {
             console.error('[Device Uploader] Upload cycle error:', error);
+            consecutiveFailures++;
+            
+            // Back off after too many consecutive failures
+            if (consecutiveFailures >= MAX_RETRIES && !isBackedOff) {
+                console.warn(`[Device Uploader] ${consecutiveFailures} consecutive failures. Backing off...`);
+                switchToBackoffMode();
+            }
         }
+    }
+
+    // ==========================================
+    // SWITCH TO BACKOFF MODE (slower uploads)
+    // ==========================================
+    function switchToBackoffMode() {
+        if (isBackedOff) return;
+        
+        isBackedOff = true;
+        
+        // Clear existing interval
+        if (uploadInterval) {
+            clearInterval(uploadInterval);
+        }
+        
+        // Set slower interval
+        uploadInterval = setInterval(uploadCycle, BACKOFF_INTERVAL);
+        
+        console.warn(`[Device Uploader] ⚠️ BACKOFF MODE: Retrying every ${BACKOFF_INTERVAL/1000} seconds`);
+        console.warn('[Device Uploader] This usually means the database is not set up yet.');
+    }
+
+    // ==========================================
+    // SWITCH TO NORMAL MODE (fast uploads)
+    // ==========================================
+    function switchToNormalMode() {
+        if (!isBackedOff) return;
+        
+        isBackedOff = false;
+        consecutiveFailures = 0;
+        
+        // Clear existing interval
+        if (uploadInterval) {
+            clearInterval(uploadInterval);
+        }
+        
+        // Set normal interval
+        uploadInterval = setInterval(uploadCycle, UPLOAD_INTERVAL);
+        
+        console.log(`[Device Uploader] ✓ NORMAL MODE: Uploading every ${UPLOAD_INTERVAL/1000} seconds`);
     }
 
     // ==========================================
@@ -202,6 +311,7 @@
         console.log('[Device Uploader] Initializing...');
         console.log('[Device Uploader] Device ID:', DEVICE_ID);
         console.log('[Device Uploader] Upload interval:', UPLOAD_INTERVAL + 'ms');
+        console.log('[Device Uploader] ⚠️ IMPORTANT: Make sure you have run supabase-schema.sql in your Supabase dashboard!');
 
         // Request GPS location (async, will update when available)
         requestGPSLocation();
@@ -249,15 +359,25 @@
     // GLOBAL EXPOSURE (for debugging)
     // ==========================================
     window.FiaphyDeviceUploader = {
-        version: '1.0.0',
+        version: '1.0.1',
         deviceId: DEVICE_ID,
         getStatus: () => ({
             isUploading,
             gpsLocation,
             ipInfo,
-            uploadInterval: UPLOAD_INTERVAL
+            uploadInterval: isBackedOff ? BACKOFF_INTERVAL : UPLOAD_INTERVAL,
+            consecutiveFailures,
+            isBackedOff,
+            mode: isBackedOff ? 'BACKOFF' : 'NORMAL'
         }),
-        forceUpload: uploadCycle
+        forceUpload: uploadCycle,
+        resetFailures: () => {
+            consecutiveFailures = 0;
+            if (isBackedOff) {
+                switchToNormalMode();
+            }
+            console.log('[Device Uploader] Failure counter reset');
+        }
     };
 
 })();

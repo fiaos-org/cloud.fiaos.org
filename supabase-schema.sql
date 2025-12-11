@@ -16,8 +16,11 @@
 -- - Row Level Security (RLS) policies for public read/write
 -- ==========================================
 
+-- Drop existing table if it exists (to fix any schema issues)
+DROP TABLE IF EXISTS sensor_data CASCADE;
+
 -- Create the main sensor data table
-CREATE TABLE IF NOT EXISTS sensor_data (
+CREATE TABLE sensor_data (
     id BIGSERIAL PRIMARY KEY,
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
@@ -38,10 +41,7 @@ CREATE TABLE IF NOT EXISTS sensor_data (
     country VARCHAR(100),
     
     -- Device identification
-    device_id VARCHAR(100),
-    
-    -- Metadata
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    device_id VARCHAR(100)
 );
 
 -- ==========================================
@@ -49,23 +49,23 @@ CREATE TABLE IF NOT EXISTS sensor_data (
 -- ==========================================
 
 -- Index for timestamp queries (last 25 minutes, historical data)
-CREATE INDEX IF NOT EXISTS idx_sensor_data_timestamp 
+CREATE INDEX idx_sensor_data_timestamp 
 ON sensor_data (timestamp DESC);
 
 -- Index for GPS location queries (categorize by location)
-CREATE INDEX IF NOT EXISTS idx_sensor_data_gps 
+CREATE INDEX idx_sensor_data_gps 
 ON sensor_data (gps_latitude, gps_longitude);
 
 -- Index for IP/Country queries (categorize by region)
-CREATE INDEX IF NOT EXISTS idx_sensor_data_ip 
+CREATE INDEX idx_sensor_data_ip 
 ON sensor_data (ip_address, country);
 
 -- Index for device queries (multi-device support)
-CREATE INDEX IF NOT EXISTS idx_sensor_data_device 
+CREATE INDEX idx_sensor_data_device 
 ON sensor_data (device_id);
 
 -- Composite index for live data queries (timestamp + device)
-CREATE INDEX IF NOT EXISTS idx_sensor_data_live 
+CREATE INDEX idx_sensor_data_live 
 ON sensor_data (timestamp DESC, device_id);
 
 -- ==========================================

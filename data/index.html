@@ -3,8 +3,558 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Datasets - Fiaphy Historical Data</title>
-    <meta name="description" content="Historical environmental monitoring data categorized by location and region">
+    <title>Datasets - Fiaphy Environmental Monitoring Data</title>
+    <meta name="description" content="High-quality environmental monitoring datasets from around the world. Real-time sensor data collection for scientific research and education.">
+    <meta name="keywords" content="environmental data, sensor data, climate monitoring, scientific datasets, IoT data collection">
+    <meta name="author" content="Neksha DeSilva">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://fiaos.org/assets/styles/global.css">
+    <link rel="icon" type="image/png" href="https://fiaos.org/assets/media/umbrella-logo-clean.png">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { font-size: 16px; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #000000; color: #ffffff; line-height: 1.6; }
+        
+        /* Loading Screen */
+        .loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: #000000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rem; z-index: 9999; }
+        .loading-logo { width: 80px; height: auto; filter: brightness(0) invert(1); }
+        .spinner { position: relative; width: 60px; height: 60px; }
+        .spinner:before { content: ""; display: block; padding-top: 100%; }
+        .circular { animation: rotate 1s linear infinite; height: 100%; width: 100%; position: absolute; top: 0; bottom: 0; left: 0; right: 0; margin: auto; }
+        .path { stroke: #ffffff; stroke-dasharray: 1, 200; stroke-dashoffset: 0; animation: dash 1.5s ease-in-out infinite; stroke-linecap: round; }
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
+        @keyframes dash { 0% { stroke-dasharray: 1, 200; stroke-dashoffset: 0; } 50% { stroke-dasharray: 89, 200; stroke-dashoffset: -35px; } 100% { stroke-dasharray: 89, 200; stroke-dashoffset: -124px; } }
+        
+        /* Page Container */
+        .page { min-height: 100vh; display: flex; flex-direction: column; }
+        .page.hidden { display: none; }
+        
+        /* Main Content */
+        .main-content { flex: 1; max-width: 1400px; width: 100%; margin: 0 auto; padding: 3rem 1.5rem; }
+        .page-header { margin-bottom: 3rem; }
+        .page-title { font-size: 2.5rem; font-weight: 300; margin-bottom: 0.5rem; letter-spacing: -0.03em; }
+        .page-subtitle { font-size: 1rem; color: #888888; line-height: 1.6; }
+        
+        /* Statistics */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: #111111; padding: 1.5rem; border-radius: 8px; }
+        .stat-label { font-size: 0.8rem; color: #888888; margin-bottom: 0.75rem; font-weight: 500; }
+        .stat-value { font-size: 1.75rem; font-weight: 300; letter-spacing: -0.02em; }
+        
+        /* Filters */
+        .filters { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; padding: 1.5rem; background: #111111; border-radius: 8px; }
+        .filter-group { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; min-width: 180px; }
+        .filter-label { font-size: 0.85rem; font-weight: 500; color: #888888; }
+        .filter-select, .filter-input { background: #000000; border: 1px solid #333333; color: #ffffff; padding: 0.75rem; border-radius: 6px; font-size: 0.875rem; font-family: 'Inter', sans-serif; }
+        .filter-select:focus, .filter-input:focus { outline: none; border-color: #555555; }
+        .filter-button { background: #ffffff; color: #000000; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .filter-button:hover { background: #e0e0e0; }
+        
+        /* Location Groups */
+        .location-groups { display: flex; flex-direction: column; gap: 1.5rem; }
+        .location-group { background: #111111; border-radius: 8px; padding: 1.5rem; }
+        .location-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; cursor: pointer; user-select: none; }
+        .location-info { flex: 1; }
+        .location-title { font-size: 1.1rem; font-weight: 500; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+        .location-meta { display: flex; gap: 2rem; font-size: 0.875rem; color: #888888; flex-wrap: wrap; }
+        .location-toggle { font-size: 1.25rem; transition: transform 0.3s; flex-shrink: 0; }
+        .location-toggle.open { transform: rotate(180deg); }
+        
+        /* Data Table */
+        .data-table-container { overflow: auto; display: none; max-height: 500px; }
+        .data-table-container.open { display: block; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .data-table th { text-align: left; padding: 0.75rem; background: #000000; color: #888888; font-weight: 500; border-bottom: 1px solid #222222; white-space: nowrap; }
+        .data-table td { padding: 0.75rem; border-top: 1px solid #1a1a1a; }
+        .data-table tr:hover { background: #0a0a0a; }
+        .data-table td.highlight { color: #ffcc00; font-weight: 500; }
+        
+        /* Device Badge */
+        .device-badge { display: inline-block; background: #222222; padding: 0.35rem 0.75rem; border-radius: 4px; cursor: help; font-size: 0.8rem; }
+        
+        /* Empty State */
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; text-align: center; gap: 1rem; color: #888888; }
+        .empty-state i { font-size: 3rem; }
+        
+        /* Footer Override */
+        .site-footer { margin-top: auto; }
+        
+        @media (max-width: 768px) {
+            .page-title { font-size: 2rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .filters { flex-direction: column; }
+            .location-meta { flex-direction: column; gap: 0.5rem; }
+            .data-table { font-size: 0.75rem; }
+            .data-table th, .data-table td { padding: 0.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <img src="https://fiaos.org/assets/media/umbrella-logo-clean.png" alt="Fiaphy Logo" class="loading-logo">
+        <div class="spinner">
+            <svg class="circular" viewBox="25 25 50 50">
+                <circle class="path" cx="50" cy="50" r="20" fill="none" stroke-width="2" stroke-miterlimit="10"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Main Page -->
+    <div id="page" class="page hidden">
+        <!-- Header -->
+        <header class="site-header">
+            <div class="header-container">
+                <div class="header-brand">
+                    <img src="https://fiaos.org/assets/media/umbrella-logo-clean.png" alt="Logo" class="brand-logo">
+                    <div class="brand-text">
+                        <h1 class="brand-title">Cloud Connections</h1>
+                        <p class="brand-subtitle">Developers</p>
+                    </div>
+                </div>
+                <nav class="main-nav">
+                    <a href="/" class="nav-link">Cloud Home</a>
+                    <a href="/fiaphy/" class="nav-link">Dashboard</a>
+                    <a href="/data/" class="nav-link active">Datasets</a>
+                    <a href="https://fiaos.org/" class="nav-link">FiaOS.org</a>
+                </nav>
+                <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Menu">
+                    <i class="bi bi-list"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h2 class="page-title">Datasets</h2>
+                <p class="page-subtitle">High-quality data sets from all around the earth. Made in small homes, small rooms, or even small bottles. To massive industries using this technology to make environmental monitoring more accessible for everyone.</p>
+            </div>
+
+            <!-- Statistics -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Records</div>
+                    <div class="stat-value" id="totalRecords">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Unique Locations</div>
+                    <div class="stat-value" id="uniqueLocations">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Countries</div>
+                    <div class="stat-value" id="uniqueCountries">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Last Update</div>
+                    <div class="stat-value" id="lastUpdate" style="font-size: 0.875rem;">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">First Data</div>
+                    <div class="stat-value" id="firstData" style="font-size: 0.875rem;">--</div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label class="filter-label">Country</label>
+                    <select class="filter-select" id="filterCountry">
+                        <option value="">All Countries</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Date From</label>
+                    <input type="date" class="filter-input" id="filterDateFrom">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Date To</label>
+                    <input type="date" class="filter-input" id="filterDateTo">
+                </div>
+                <div class="filter-group" style="justify-content: flex-end;">
+                    <button class="filter-button" id="applyFilters">Apply Filters</button>
+                </div>
+            </div>
+
+            <!-- Location Groups -->
+            <div id="locationGroups" class="location-groups">
+                <!-- Dynamically populated -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state hidden">
+                <i class="bi bi-database"></i>
+                <h3>No Data Available</h3>
+                <p>Environmental monitoring data will appear here once devices start uploading</p>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="site-footer">
+            <div class="footer-container">
+                <div class="footer-section">
+                    <br>
+                    <span style="font-weight: 400;">Future is Autonomous.</span>
+                    <div class="footer-logo" style="margin-top: 1rem;">
+                        <img src="https://fiaos.org/assets/media/logo-satur.png" alt="Meta Logo">
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <h4>Project</h4>
+                    <ul>
+                        <li><a href="https://fiaos.org/research/">Research</a></li>
+                        <li><a href="https://fiaos.org/docs/">Documentation</a></li>
+                        <li><a href="https://fiaos.org/archive">Archive</a></li>
+                        <li><a href="https://fiaos.org/data">Data</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="https://fiaos.org/api/">API</a></li>
+                        <li><a href="https://fiaos.org/docs/development-updates-and-networks/">Service Shutdowns</a></li>
+                        <li><a href="https://fiaos.org/docs/contributing.html">Contributing</a></li>
+                        <li><a href="https://fiaos.org/docs/license">License</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <ul>
+                        <li><a href="mailto:research@fiaos.org">research@fiaos.org</a></li>
+                        <li><a href="https://nekshadesilva.com/docs">Published Research</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom" style="text-align: center; padding: 1rem;">
+                <p>Copyrights © Neksha DeSilva and www.nekshadesilva.com. All rights reserved.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // ==========================================
+        // SUPABASE CONFIGURATION
+        // ==========================================
+        const SUPABASE_URL = 'https://uopikbgoyrmtknbomvgo.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvcGlrYmdveXJtdGtuYm9tdmdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzNzY5NDAsImV4cCI6MjA4MDk1Mjk0MH0.k-UqQrCkAmyPqE_kNO0xLe564lm55hpDlFTPpTsYOr4';
+        const TABLE_NAME = 'sensor_data';
+
+        // ==========================================
+        // STATE
+        // ==========================================
+        let allData = [];
+        let filteredData = [];
+        let groupedData = {};
+        let deviceNames = {};
+
+        // ==========================================
+        // GENERATE DEVICE NAME FROM IP
+        // ==========================================
+        function getDeviceName(ipAddress) {
+            if (!ipAddress) return 'Unknown';
+            
+            if (!deviceNames[ipAddress]) {
+                const deviceNumber = Object.keys(deviceNames).length + 1;
+                const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                deviceNames[ipAddress] = letters[deviceNumber - 1];
+            }
+            
+            return deviceNames[ipAddress];
+        }
+
+        // ==========================================
+        // FORMAT TIME AGO
+        // ==========================================
+        function timeAgo(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
+            
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) return Math.floor(seconds / 60) + ' min ago';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + ' hrs ago';
+            if (seconds < 2592000) return Math.floor(seconds / 86400) + ' days ago';
+            if (seconds < 31536000) return Math.floor(seconds / 2592000) + ' months ago';
+            return Math.floor(seconds / 31536000) + ' years ago';
+        }
+
+        // ==========================================
+        // FETCH ALL HISTORICAL DATA
+        // ==========================================
+        async function fetchHistoricalData() {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?order=timestamp.desc&limit=10000`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                if (!response.ok) throw new Error('Failed to fetch data');
+
+                const data = await response.json();
+                console.log(`Loaded ${data.length} historical records`);
+                return data;
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                return [];
+            }
+        }
+
+        // ==========================================
+        // GROUP DATA BY GPS + COUNTRY
+        // ==========================================
+        function groupDataByLocation(data) {
+            const groups = {};
+
+            data.forEach(record => {
+                let key;
+                if (record.gps_latitude && record.gps_longitude) {
+                    const lat = record.gps_latitude.toFixed(4);
+                    const lng = record.gps_longitude.toFixed(4);
+                    const country = record.country || 'Unknown';
+                    key = `${lat},${lng}|${country}`;
+                } else {
+                    const country = record.country || 'Unknown';
+                    key = `Unknown|${country}`;
+                }
+
+                if (!groups[key]) {
+                    groups[key] = {
+                        latitude: record.gps_latitude,
+                        longitude: record.gps_longitude,
+                        country: record.country || 'Unknown',
+                        records: []
+                    };
+                }
+
+                groups[key].records.push(record);
+            });
+
+            return groups;
+        }
+
+        // ==========================================
+        // UPDATE STATISTICS
+        // ==========================================
+        function updateStatistics(data) {
+            const totalRecords = data.length;
+            const locations = new Set(data.map(r => `${r.gps_latitude},${r.gps_longitude}`).filter(l => l !== 'null,null'));
+            const countries = new Set(data.map(r => r.country).filter(c => c));
+
+            document.getElementById('totalRecords').textContent = totalRecords.toLocaleString();
+            document.getElementById('uniqueLocations').textContent = locations.size || '0';
+            document.getElementById('uniqueCountries').textContent = countries.size || '0';
+
+            if (data.length > 0) {
+                const sorted = [...data].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+                const newestTimestamp = sorted[0].timestamp;
+                const oldestTimestamp = sorted[sorted.length - 1].timestamp;
+                
+                document.getElementById('lastUpdate').textContent = timeAgo(newestTimestamp);
+                document.getElementById('firstData').textContent = 'From ' + timeAgo(oldestTimestamp);
+            }
+        }
+
+        // ==========================================
+        // POPULATE COUNTRY FILTER
+        // ==========================================
+        function populateCountryFilter(data) {
+            const countries = [...new Set(data.map(r => r.country).filter(c => c))].sort();
+            const select = document.getElementById('filterCountry');
+            
+            countries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country;
+                option.textContent = country;
+                select.appendChild(option);
+            });
+        }
+
+        // ==========================================
+        // RENDER LOCATION GROUPS
+        // ==========================================
+        function renderLocationGroups(groups) {
+            const container = document.getElementById('locationGroups');
+            const emptyState = document.getElementById('emptyState');
+            container.innerHTML = '';
+
+            const groupKeys = Object.keys(groups);
+
+            if (groupKeys.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            groupKeys.forEach((key) => {
+                const group = groups[key];
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'location-group';
+
+                const header = document.createElement('div');
+                header.className = 'location-header';
+                
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'location-info';
+                
+                const titleSpan = document.createElement('div');
+                titleSpan.className = 'location-title';
+                titleSpan.innerHTML = `<i class="bi bi-geo-alt"></i> ${group.country}`;
+                
+                const metaSpan = document.createElement('div');
+                metaSpan.className = 'location-meta';
+                metaSpan.innerHTML = `
+                    <span>${group.records.length} records</span>
+                    <span>Latest: ${timeAgo(group.records[0].timestamp)}</span>
+                `;
+                
+                infoDiv.appendChild(titleSpan);
+                infoDiv.appendChild(metaSpan);
+
+                const toggleDiv = document.createElement('div');
+                toggleDiv.className = 'location-toggle';
+                toggleDiv.textContent = '▼';
+
+                header.appendChild(infoDiv);
+                header.appendChild(toggleDiv);
+
+                const tableContainer = document.createElement('div');
+                tableContainer.className = 'data-table-container';
+                
+                const table = document.createElement('table');
+                table.className = 'data-table';
+                
+                const thead = document.createElement('thead');
+                thead.innerHTML = `
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Temp (°C)</th>
+                        <th>Humidity (%)</th>
+                        <th>Pressure (hPa)</th>
+                        <th class="highlight">Solar (W/m²)</th>
+                        <th class="highlight">Heat Flux (W/m²)</th>
+                        <th>ΔT (°C)</th>
+                        <th>Device</th>
+                    </tr>
+                `;
+                table.appendChild(thead);
+                
+                const tbody = document.createElement('tbody');
+                group.records.slice(0, 50).forEach(record => {
+                    const row = document.createElement('tr');
+                    const deviceName = getDeviceName(record.ip_address);
+                    const timestamp = new Date(record.timestamp).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                    row.innerHTML = `
+                        <td>${timestamp}</td>
+                        <td>${record.temperature.toFixed(1)}</td>
+                        <td>${record.humidity.toFixed(0)}</td>
+                        <td>${record.air_pressure.toFixed(1)}</td>
+                        <td class="highlight">${record.solar_radiation.toFixed(0)}</td>
+                        <td class="highlight">${record.heat_flux.toFixed(1)}</td>
+                        <td>${record.delta_temperature.toFixed(2)}</td>
+                        <td><span class="device-badge" title="IP: ${record.ip_address || 'N/A'}">Device ${deviceName}</span></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                table.appendChild(tbody);
+                tableContainer.appendChild(table);
+                
+                if (group.records.length > 50) {
+                    const moreInfo = document.createElement('p');
+                    moreInfo.style.textAlign = 'center';
+                    moreInfo.style.padding = '1rem';
+                    moreInfo.style.color = '#888';
+                    moreInfo.style.fontSize = '0.875rem';
+                    moreInfo.textContent = `Showing 50 of ${group.records.length} records`;
+                    tableContainer.appendChild(moreInfo);
+                }
+
+                header.addEventListener('click', () => {
+                    tableContainer.classList.toggle('open');
+                    toggleDiv.classList.toggle('open');
+                });
+
+                groupDiv.appendChild(header);
+                groupDiv.appendChild(tableContainer);
+                container.appendChild(groupDiv);
+            });
+        }
+
+        // ==========================================
+        // APPLY FILTERS
+        // ==========================================
+        function applyFilters() {
+            const country = document.getElementById('filterCountry').value;
+            const dateFrom = document.getElementById('filterDateFrom').value;
+            const dateTo = document.getElementById('filterDateTo').value;
+
+            filteredData = allData.filter(record => {
+                if (country && record.country !== country) return false;
+                
+                if (dateFrom) {
+                    const recordDate = new Date(record.timestamp);
+                    const filterDate = new Date(dateFrom);
+                    if (recordDate < filterDate) return false;
+                }
+                
+                if (dateTo) {
+                    const recordDate = new Date(record.timestamp);
+                    const filterDate = new Date(dateTo);
+                    filterDate.setHours(23, 59, 59, 999);
+                    if (recordDate > filterDate) return false;
+                }
+                
+                return true;
+            });
+
+            groupedData = groupDataByLocation(filteredData);
+            updateStatistics(filteredData);
+            renderLocationGroups(groupedData);
+        }
+
+        // ==========================================
+        // INITIALIZATION
+        // ==========================================
+        async function init() {
+            console.log('Initializing datasets page...');
+
+            allData = await fetchHistoricalData();
+            filteredData = allData;
+
+            groupedData = groupDataByLocation(filteredData);
+            updateStatistics(filteredData);
+            populateCountryFilter(allData);
+            renderLocationGroups(groupedData);
+
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('page').classList.remove('hidden');
+
+            console.log('Datasets page loaded');
+        }
+
+        document.getElementById('applyFilters').addEventListener('click', applyFilters);
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -123,8 +673,8 @@
         <main class="main-content">
             <!-- Page Header -->
             <div class="page-header">
-                <h2 class="page-title">Historical Data</h2>
-                <p class="page-subtitle">Explore environmental monitoring data categorized by location and region</p>
+                <h2 class="page-title">Datasets</h2>
+                <p class="page-subtitle">Real-time sensor data from connected IoT devices. Ready for AI training, big data analytics, and machine learning applications.</p>
             </div>
 
             <!-- Statistics -->

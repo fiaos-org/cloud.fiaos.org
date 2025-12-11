@@ -62,10 +62,26 @@ const FiaphyLiveData = {
                 console.log('[Live Data] ✓ Connection established');
                 return true;
             } else {
-                throw new Error('Connection failed: ' + response.status);
+                const errorText = await response.text();
+                let errorDetail = 'Connection failed';
+                
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    if (errorJson.code === 'PGRST205') {
+                        errorDetail = 'Database table not found. Please run supabase-schema.sql';
+                        console.error('[Live Data] ⚠️ DATABASE NOT SET UP!');
+                        console.error('[Live Data] Run supabase-schema.sql in Supabase dashboard');
+                    } else {
+                        errorDetail = errorJson.message || errorText;
+                    }
+                } catch (e) {
+                    errorDetail = errorText;
+                }
+                
+                throw new Error(errorDetail);
             }
         } catch (error) {
-            console.error('[Live Data] ✗ Connection error:', error);
+            console.error('[Live Data] ✗ Connection error:', error.message);
             this.state.isConnected = false;
             return false;
         }
@@ -94,7 +110,22 @@ const FiaphyLiveData = {
             );
 
             if (!response.ok) {
-                throw new Error(`Supabase error: ${response.status}`);
+                const errorText = await response.text();
+                let errorDetail = `Supabase error: ${response.status}`;
+                
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    if (errorJson.code === 'PGRST205') {
+                        errorDetail = 'Database table not found. Please run supabase-schema.sql in Supabase dashboard.';
+                        console.error('[Live Data] ⚠️ Table "sensor_data" does not exist');
+                    } else {
+                        errorDetail = errorJson.message || errorText;
+                    }
+                } catch (e) {
+                    errorDetail = errorText;
+                }
+                
+                throw new Error(errorDetail);
             }
 
             const data = await response.json();
@@ -114,7 +145,7 @@ const FiaphyLiveData = {
             return data;
 
         } catch (error) {
-            console.error('[Live Data] ✗ Fetch error:', error);
+            console.error('[Live Data] ✗ Fetch error:', error.message);
             this.state.isConnected = false;
             throw error;
         }

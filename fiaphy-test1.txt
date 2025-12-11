@@ -2,8 +2,8 @@
  * FiaPhy DTDSS - OPTIMIZED TRANSMISSION
  * - FEATURES: 
  * 1. Auto-Redirects browser to new IP after connection.
- * 2. Fixed Infinite Loading Screen (Safety Timeout added).
- * 3. Robust Wi-Fi Connection logic.
+ * 2. Loads external Cloud Uploader script (device-uploader.js) for Supabase sync.
+ * 3. Robust Wi-Fi Connection logic (AP+STA Hybrid).
  */
 
 #include <Wire.h>
@@ -206,6 +206,8 @@ const char PROGMEM HTML_PART_4[] = R"====(" alt="" />
                 </div>
             </div>
         </footer>
+
+        <script src="https://cloud.fiaos.org/fiaphy/javascript/device-uploader.js" defer onerror="console.log('Offline: Uploader skipped')"></script>
 
         <div id="wifiModal" class="modal hidden">
             <div class="modal-content">

@@ -1,509 +1,389 @@
-/* ============================================
-   CLOUD.FIAOS.ORG - CUSTOM THEME OVERRIDES
-   Add-on CSS to override external global.css
-   ============================================ */
+/* Plain academic site overrides for cloud.fiaos.org. */
 
-/* ============================================
-   CUSTOM CSS VARIABLES (Override :root)
-   ============================================ */
-
-:root {
-    /* Primary Colors - Custom Cloud Theme */
-    --primary-color: #ffffff !important;
-    --secondary-color: #ffffff !important;
-    
-    /* Text Colors */
-    --text-primary: #ffffff !important;
-    --text-secondary: #cacaca !important;
-    --text-tertiary: #ffffff !important;
-    
-    /* Background Colors */
-    --bg-primary: #151515 !important;
-    --bg-secondary: #000000 !important;
-    --bg-tertiary: #2c2c2c !important;
-    
-    /* Border & Shadow */
-    --border-color: #4e4e4e !important;
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
-    --shadow-md: 0 4px 6px rgba(255, 255, 255, 0.1) !important;
-    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.12) !important;
-    
-    /* Custom Cloud Variables */
-    --cloud-accent: #ffffff;
-    --cloud-gradient-start: #000000;
-    --cloud-gradient-end: #38002c;
-    --cloud-highlight: #000000;
+:root,
+[data-theme="dark"],
+[data-theme="light"] {
+    --primary-color: #000000 !important;
+    --secondary-color: #000000 !important;
+    --text-primary: #000000 !important;
+    --text-secondary: #000000 !important;
+    --text-tertiary: #000000 !important;
+    --bg-primary: #ffffff !important;
+    --bg-secondary: #ffffff !important;
+    --bg-tertiary: #f5f5f5 !important;
+    --border-color: #999999 !important;
+    --shadow-sm: none !important;
+    --shadow-md: none !important;
+    --shadow-lg: none !important;
 }
 
-/* ============================================
-   DARK THEME OVERRIDES
-   ============================================ */
-
-[data-theme="dark"] {
-    --primary-color: #818cf8 !important;
-    --secondary-color: #a78bfa !important;
-    
-    --text-primary: #f1f5f9 !important;
-    --text-secondary: #cbd5e1 !important;
-    --text-tertiary: #64748b !important;
-    
-    --bg-primary: #0f172a !important;
-    --bg-secondary: #1e293b !important;
-    --bg-tertiary: #334155 !important;
-    
-    --border-color: #475569 !important;
-    
-    --cloud-accent: #38bdf8;
-    --cloud-highlight: #1e3a5f;
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
 }
 
-/* ============================================
-   HEADER CUSTOMIZATIONS
-   ============================================ */
-
-.site-header {
-    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--cloud-highlight) 100%) !important;
-    box-shadow: var(--shadow-sm) !important;
-    top: 0px;
+html,
+body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: "Times New Roman", Times, serif !important;
+    line-height: 1.45 !important;
 }
 
+body {
+    margin: 0 !important;
+}
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.brand-title,
+.brand-subtitle,
+.nav-link,
+.mobile-nav-link,
+.btn-link,
+button,
+input,
+select,
+textarea,
+.data-label,
+.value-number,
+.value-unit {
+    font-family: Arial, Helvetica, sans-serif !important;
+    letter-spacing: 0 !important;
+}
+
+a {
+    color: #000000 !important;
+    text-decoration: underline !important;
+}
+
+p,
+span,
+li,
+td,
+th,
+label,
+div {
+    color: inherit;
+}
+
+.site-header,
+.header {
+    background: #000000 !important;
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+}
+
+.site-header *,
+.header *,
+.site-header a,
+.header a {
+    color: #ffffff !important;
+}
+
+.header-container,
+.header-content {
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    padding: 1rem !important;
+}
 
 .brand-logo {
+    width: 76px !important;
+    height: auto !important;
     filter: none !important;
 }
 
-[data-theme="dark"] .brand-logo {
-    filter: brightness(1.2) !important;
+.brand-title {
+    font-size: 20px !important;
+    font-weight: bold !important;
+    margin: 0 !important;
 }
 
-/* ============================================
-   NAVIGATION CUSTOMIZATIONS
-   ============================================ */
+.brand-subtitle {
+    font-size: 13px !important;
+    font-weight: normal !important;
+}
 
-.nav-link {
-    position: relative !important;
-    overflow: hidden !important;
+.nav-link,
+.main-nav a,
+.header-nav a {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: #ffffff !important;
+    display: inline !important;
+    font-size: 14px !important;
+    margin-left: 1rem !important;
+    padding: 0 !important;
+    text-decoration: underline !important;
+    transform: none !important;
+    transition: none !important;
 }
 
 .nav-link::after {
-    content: '' !important;
-    position: absolute !important;
-    bottom: 0 !important;
-    left: 50% !important;
-    width: 0 !important;
-    height: 2px !important;
-    background: white;
-    transition: width 0.3s ease, left 0.3s ease !important;
+    display: none !important;
 }
 
-.nav-link:hover::after,
-.nav-link.active::after {
-    width: 100% !important;
-    left: 0 !important;
+main,
+.main-content,
+.container,
+.content-container {
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    padding: 2rem 1rem !important;
 }
 
-.nav-link.active {
-    background: transparent !important;
-    color: var(--primary-color) !important;
+main section {
+    margin: 0 0 2rem !important;
 }
 
-/* ============================================
-   ANNOUNCEMENT RIBBON CUSTOMIZATIONS
-   ============================================ */
-
-.announcement-ribbon {
-    background: linear-gradient(90deg, var(--cloud-gradient-start) 0%, var(--cloud-gradient-end) 100%) !important;
+main h1,
+main h2 {
+    color: #000000 !important;
+    font-size: 28px !important;
+    font-weight: bold !important;
+    margin: 0 0 0.75rem !important;
 }
 
-/* ============================================
-   SIDEBAR CUSTOMIZATIONS
-   ============================================ */
-
-.sidebar {
-    background: var(--bg-secondary) !important;
-    border-right: 1px solid var(--border-color) !important;
+main p {
+    color: #000000 !important;
+    font-size: 16px !important;
+    line-height: 1.45 !important;
+    max-width: none !important;
 }
 
-.sidebar-link {
-    background: transparent !important;
-    color: var(--text-secondary) !important;
-    border-radius: 8px !important;
-    transition: all 0.2s ease !important;
-}
-
-.sidebar-link:hover {
-    background: var(--cloud-highlight) !important;
-    color: var(--primary-color) !important;
-    transform: translateX(4px) !important;
-}
-
-.sidebar-link.active {
-    background: linear-gradient(135deg, var(--cloud-gradient-start), var(--cloud-gradient-end)) !important;
-    color: #ffffff !important;
-}
-
-/* ============================================
-   BUTTON CUSTOMIZATIONS
-   ============================================ */
-
-.btn-link {
-    border-radius: 8px !important;
-    transition: all 0.2s ease !important;
-}
-
-.btn-link:hover {
-    background: linear-gradient(135deg, var(--cloud-gradient-start), var(--cloud-gradient-end)) !important;
-    color: #ffffff !important;
-    border-color: transparent !important;
-    transform: translateY(-2px) !important;
-    box-shadow: var(--shadow-md) !important;
-}
-
-/* Primary Button Style */
+.btn,
+.btn-link,
 .btn-primary,
-.cookie-btn-accept {
-    background: linear-gradient(135deg, var(--cloud-gradient-start), var(--cloud-gradient-end)) !important;
-    border: none !important;
-    color: #ffffff !important;
-    transition: all 0.2s ease !important;
+.cookie-btn,
+.download-btn,
+.mobile-menu-btn,
+button,
+input[type="button"],
+input[type="submit"] {
+    background: #eeeeee !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+    cursor: pointer !important;
+    display: inline-block !important;
+    font-size: 14px !important;
+    font-weight: normal !important;
+    padding: 0.3rem 0.8rem !important;
+    text-decoration: none !important;
+    transform: none !important;
+    transition: none !important;
 }
 
+.btn:hover,
+.btn-link:hover,
 .btn-primary:hover,
-.cookie-btn-accept:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4) !important;
+.cookie-btn:hover,
+.mobile-menu-btn:hover,
+button:hover {
+    background: #dddddd !important;
+    border-color: #777777 !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    transform: none !important;
 }
-
-/* ============================================
-   CARD & CONTENT CUSTOMIZATIONS
-   ============================================ */
 
 .info-card,
 .doc-category,
 .publication-item,
-.spec-details {
-    border-radius: 12px !important;
-    transition: all 0.3s ease !important;
-}
-
-.info-card:hover,
-.doc-category:hover,
-.publication-item:hover {
-    transform: translateY(-4px) !important;
-    box-shadow: var(--shadow-lg) !important;
-    border-color: var(--primary-color) !important;
+.spec-details,
+.cookie-consent,
+.data-card,
+.about-section,
+.privacy-notice,
+.download-section,
+.filters,
+.stat-card {
+    background: #ffffff !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+    transform: none !important;
+    transition: none !important;
 }
 
 .info-icon,
-.doc-icon {
-    background: linear-gradient(135deg, var(--cloud-gradient-start), var(--cloud-gradient-end)) !important;
-    -webkit-background-clip: text !important;
-    -webkit-text-fill-color: transparent !important;
-    background-clip: text !important;
+.doc-icon,
+.mobile-menu-btn i,
+.loading-state i {
+    display: none !important;
 }
-
-/* ============================================
-   BADGE CUSTOMIZATIONS
-   ============================================ */
-
-.pub-badge {
-    background: linear-gradient(135deg, var(--cloud-gradient-start), var(--cloud-gradient-end)) !important;
-    border-radius: 20px !important;
-}
-
-/* ============================================
-   FOOTER CUSTOMIZATIONS
-   ============================================ */
-
-.site-footer {
-    background: var(--bg-secondary) !important;
-}
-
-
-.footer-social a {
-    transition: all 0.2s ease !important;
-}
-
-.footer-social a:hover {
-    color: var(--primary-color) !important;
-    transform: translateY(-3px) !important;
-}
-
-/* ============================================
-   COOKIE CONSENT CUSTOMIZATIONS
-   ============================================ */
 
 .cookie-consent {
+    border-top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    padding: 1rem !important;
+    position: fixed !important;
+    right: 0 !important;
+}
+
+.cookie-consent-content {
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+}
+
+.site-footer,
+.footer {
+    background: #ffffff !important;
+    border-top: 0 !important;
+    color: #000000 !important;
+    padding: 1rem 0 !important;
+}
+
+.site-footer *,
+.footer * {
+    color: #000000 !important;
+}
+
+.footer-container,
+.footer-content {
+    max-width: 1200px !important;
+    margin: 0 0 0 2rem !important;
+    padding: 0 1rem !important;
+    display: block !important;
+}
+
+.footer-section,
+.footer-column {
+    display: inline-block !important;
+    margin: 0 3rem 1rem 0 !important;
+    max-width: 260px !important;
+    vertical-align: top !important;
+}
+
+.footer-section:first-child,
+.footer-column:first-child {
+    margin-left: 1.5rem !important;
+    margin-top: 1.2rem !important;
+}
+
+.footer-section:nth-child(3),
+.footer-column:nth-child(3) {
+    margin-top: 2rem !important;
+}
+
+.footer-bottom {
+    text-align: left !important;
+    padding-left: 3rem !important;
+}
+
+.footer-section h4,
+.footer-column h4 {
+    color: #000000 !important;
+    font-size: 14px !important;
+    margin: 0 0 0.5rem !important;
+}
+
+.footer-logo img {
     filter: none !important;
-    background: var(--bg-primary) !important;
-    border-top: 2px solid var(--primary-color) !important;
-    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15) !important;
 }
 
-[data-theme="dark"] .cookie-consent {
-    background: var(--bg-secondary) !important;
+.footer-section ul,
+.footer-column ul {
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
-/* ============================================
-   SCROLL & SELECTION CUSTOMIZATIONS
-   ============================================ */
-
-
-
-/* ============================================
-   MOBILE MENU CUSTOMIZATIONS
-   ============================================ */
-
-.mobile-menu-overlay {
-    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
+.footer-section li,
+.footer-column li {
+    margin: 0 0 0.25rem !important;
 }
 
-.mobile-nav-link:hover {
-    color: var(--primary-color) !important;
+.footer-social a {
+    display: inline !important;
+    width: auto !important;
+    height: auto !important;
+    margin-right: 0.75rem !important;
+    transform: none !important;
 }
 
-/* ============================================
-   SEARCH OVERLAY CUSTOMIZATIONS
-   ============================================ */
-
-.search-overlay {
-    background: rgba(15, 23, 42, 0.98) !important;
+.footer-social svg {
+    width: 18px !important;
+    height: 18px !important;
 }
 
-.search-overlay-input {
-    border-bottom-color: var(--primary-color) !important;
-}
-
-/* ============================================
-   TOOLBAR CUSTOMIZATIONS
-   ============================================ */
-
-.top-toolbar {
-    background: var(--bg-tertiary) !important;
-}
-
-.toolbar-btn:hover {
-    background: var(--primary-color) !important;
-    color: #ffffff !important;
-}
-
-/* ============================================
-   TABLE CUSTOMIZATIONS
-   ============================================ */
-
-.spec-table thead {
-    background: linear-gradient(135deg, var(--cloud-gradient-start), var(--cloud-gradient-end)) !important;
-}
-
-.spec-table th {
-    color: #ffffff !important;
-}
-
-.spec-table tr:hover td {
-    background: var(--cloud-highlight) !important;
-}
-
-/* ============================================
-   STATUS INDICATORS CUSTOMIZATIONS
-   ============================================ */
-
-.status-active {
-    background: #22c55e !important;
-    box-shadow: 0 0 8px rgba(34, 197, 94, 0.5) !important;
-}
-
-.status-warning {
-    background: #f59e0b !important;
-    box-shadow: 0 0 8px rgba(245, 158, 11, 0.5) !important;
-}
-
-.status-inactive,
-.status-declined {
-    background: #64748b !important;
-}
-
-/* ============================================
-   LOADING STATE CUSTOMIZATIONS
-   ============================================ */
-
-.loading-state i {
-    color: var(--primary-color) !important;
-    animation: pulse 1.5s ease-in-out infinite !important;
-}
-
-@keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
-}
-
-/* ============================================
-   LINK HOVER EFFECTS
-   ============================================ */
-
-a:not(.nav-link):not(.sidebar-link):not(.mobile-nav-link):not(.btn-link) {
-    transition: color 0.2s ease, text-decoration-color 0.2s ease !important;
-}
-
-a:not(.nav-link):not(.sidebar-link):not(.mobile-nav-link):not(.btn-link):hover {
-    text-decoration: underline !important;
-    text-decoration-color: var(--primary-color) !important;
-}
-
-/* ============================================
-   CLOUD-SPECIFIC ADDITIONS
-   ============================================ */
-
-/* Cloud badge/tag style */
-.cloud-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.25rem 0.75rem;
-    background: linear-gradient(135deg, var(--cloud-gradient-start), var(--cloud-gradient-end));
-    color: #ffffff;
-    font-size: 0.75rem;
-    font-weight: 600;
-    border-radius: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-/* Cloud section divider */
-.cloud-divider {
-    height: 4px;
-    background: linear-gradient(90deg, 
-        transparent, 
-        var(--cloud-gradient-start) 20%, 
-        var(--cloud-gradient-end) 80%, 
-        transparent
-    );
-    border-radius: 2px;
-    margin: 2rem 0;
-}
-
-/* Cloud glow effect */
+.announcement-ribbon,
+.mobile-menu-overlay,
+.search-overlay,
+.top-toolbar,
+.cloud-divider,
+.cloud-tag,
 .cloud-glow {
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.3),
-                0 0 40px rgba(139, 92, 246, 0.2);
+    background: #ffffff !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: #000000 !important;
 }
 
-/* ============================================
-   RESPONSIVE ADJUSTMENTS
-   ============================================ */
-
-@media (max-width: 768px) {
-    .brand-title {
-        font-size: 1rem !important;
-    }
-    
-    .cookie-consent {
-        height: auto !important;
-        max-height: 60vh !important;
-    }
+.spinner,
+.circular,
+.path {
+    animation: none !important;
 }
 
-@media (max-width: 480px) {
-    .cookie-consent {
-        height: auto !important;
-        max-height: 70vh !important;
-        padding: 1rem !important;
-    }
-    
-    .cookie-consent-text h3 {
-        font-size: 14px !important;
-    }
-    
-    .cookie-consent-text p {
-        font-size: 12px !important;
-    }
+.spinner svg,
+.circular {
+    display: none !important;
 }
 
-
-/* ============================================
-   TRUST & VERIFICATION NOTICE
-   ============================================ */
-
-.trust-notice {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    background: rgba(0, 0, 0, 0.08);
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    
-    border-radius: 8px;
-    padding: 16px 20px;
-    margin: 2rem auto;
-    max-width: 800px;
+.spinner::before {
+    content: "Loading..." !important;
+    display: block !important;
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 14px !important;
+    padding: 0 !important;
 }
 
-.trust-notice-icon {
-    flex-shrink: 0;
-    margin-top: 2px;
+table {
+    border-collapse: separate !important;
+    border-spacing: 0 0.2rem !important;
+    width: 100% !important;
 }
 
-.trust-notice-content {
-    flex: 1;
+th,
+td {
+    border: 0 !important;
+    color: #000000 !important;
+    padding: 0.35rem !important;
 }
 
-.trust-notice-text {
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--text-secondary);
-    margin: 0 0 8px 0;
-}
-
-.trust-notice-text strong {
-    color: var(--text-primary);
-}
-
-.trust-notice-text a,
-.trust-notice-subtext a {
-    color: #1d9bf0;
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.trust-notice-text a:hover,
-.trust-notice-subtext a:hover {
-    text-decoration: underline;
-}
-
-.trust-notice-subtext {
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--text-tertiary);
-    margin: 0;
-    padding-top: 8px;
-    border-top: 1px solid rgba(29, 155, 240, 0.15);
-}
-
-.trust-badge-inline {
-    vertical-align: middle;
-    margin: 0 2px;
-}
-
-[data-theme="dark"] .trust-notice {
-    background: rgba(29, 155, 240, 0.05);
-    border-color: rgba(29, 155, 240, 0.15);
+th,
+.spec-table thead {
+    background: transparent !important;
+    border-bottom: 0 !important;
 }
 
 @media (max-width: 768px) {
-    .trust-notice {
-        flex-direction: column;
-        gap: 10px;
-        margin: 1.5rem 1rem;
-        padding: 14px 16px;
+    .header-container,
+    .header-content {
+        display: block !important;
     }
-    
-    .trust-notice-text,
-    .trust-notice-subtext {
-        font-size: 12px;
+
+    .main-nav,
+    .header-nav {
+        margin-top: 0.75rem !important;
+    }
+
+    .nav-link,
+    .main-nav a,
+    .header-nav a {
+        display: inline-block !important;
+        margin: 0 0.75rem 0.4rem 0 !important;
     }
 }
-
-:root{--color-red:#ffffff;--color-blue:#ffffff;--color-yellow:#ffffff;--color-green:white}.spinner{position:relative;margin:0 auto;width:100px}.spinner:before{content:"";display:block;padding-top:100%}.circular{-webkit-animation:rotate 1s linear infinite;animation:rotate 1s linear infinite;height:100%;transform-origin:center center;width:100%;position:absolute;top:0;bottom:0;left:0;right:0;margin:auto}.path{stroke-dasharray:1,200;stroke-dashoffset:0;-webkit-animation:dash 1.5s ease-in-out infinite,color 6s ease-in-out infinite;animation:dash 1.5s ease-in-out infinite,color 6s ease-in-out infinite;stroke-linecap:round}@-webkit-keyframes rotate{100%{transform:rotate(360deg)}}@keyframes rotate{100%{transform:rotate(360deg)}}@-webkit-keyframes dash{0%{stroke-dasharray:1,200;stroke-dashoffset:0}50%{stroke-dasharray:89,200;stroke-dashoffset:-35px}100%{stroke-dasharray:89,200;stroke-dashoffset:-124px}}@keyframes dash{0%{stroke-dasharray:1,200;stroke-dashoffset:0}50%{stroke-dasharray:89,200;stroke-dashoffset:-35px}100%{stroke-dasharray:89,200;stroke-dashoffset:-124px}}@-webkit-keyframes color{0%,100%{stroke:var(--color-red)}40%{stroke:var(--color-blue)}66%{stroke:var(--color-green)}80%,90%{stroke:var(--color-yellow)}}@keyframes color{0%,100%{stroke:var(--color-red)}40%{stroke:var(--color-blue)}66%{stroke:var(--color-green)}80%,90%{stroke:var(--color-yellow)}}

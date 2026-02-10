@@ -3,166 +3,335 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Datasets - Fiaphy Environmental Monitoring Data</title>
-    <meta name="description" content="High-quality environmental monitoring datasets from around the world. Real-time sensor data collection for scientific research and education.">
-    <meta name="keywords" content="environmental data, sensor data, climate monitoring, scientific datasets, IoT data collection">
+    <title>FiaPhy free data set</title>
+    <meta name="description" content="Free FiaPhy device data for public use, copying, sharing, and citation.">
+    <meta name="keywords" content="fiaphy data, free data, sensor data, public dataset">
     <meta name="author" content="Neksha DeSilva">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="https://fiaos.org/assets/styles/global.css">
-    <link rel="icon" type="image/png" href="https://fiaos.org/assets/media/umbrella-logo-clean.png">
+    <link rel="icon" type="image/png" href="/fiaphy/javascript/9835729.png">
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        *, *::before, *::after { box-sizing: border-box; }
         html { font-size: 16px; }
-        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #000000; color: #ffffff; line-height: 1.6; }
+        body {
+            margin: 0;
+            font-family: "Times New Roman", Times, serif;
+            background: #ffffff;
+            color: #000000;
+            line-height: 1.45;
+        }
         
-        /* Loading Screen */
-        .loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: #000000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rem; z-index: 9999; }
-        .loading-logo { width: 80px; height: auto; filter: brightness(0) invert(1); }
-        .spinner { position: relative; width: 60px; height: 60px; }
-        .spinner:before { content: ""; display: block; padding-top: 100%; }
-        .circular { animation: rotate 1s linear infinite; height: 100%; width: 100%; position: absolute; top: 0; bottom: 0; left: 0; right: 0; margin: auto; }
-        .path { stroke: #ffffff; stroke-dasharray: 1, 200; stroke-dashoffset: 0; animation: dash 1.5s ease-in-out infinite; stroke-linecap: round; }
-        @keyframes rotate { 100% { transform: rotate(360deg); } }
-        @keyframes dash { 0% { stroke-dasharray: 1, 200; stroke-dashoffset: 0; } 50% { stroke-dasharray: 89, 200; stroke-dashoffset: -35px; } 100% { stroke-dasharray: 89, 200; stroke-dashoffset: -124px; } }
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: #ffffff;
+            color: #000000;
+            display: block;
+            padding-top: 8rem;
+            text-align: center;
+            z-index: 9999;
+        }
+        .loading-logo { display: none; }
+        .spinner {
+            width: auto;
+            height: auto;
+            margin: 0 auto;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14px;
+        }
+        .spinner::before { content: "Loading data..."; }
+        .spinner svg { display: none; }
         
-        /* Connection Status Ribbon */
-        .connection-ribbon { position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(90deg, #111111 0%, #1a1a1a 50%, #111111 100%); border-bottom: 1px solid #222222; padding: 0.75rem 1rem; z-index: 8888; display: none; backdrop-filter: blur(10px); }
-        .connection-ribbon.show { display: block; animation: slideDown 0.3s ease-out; }
-        .connection-ribbon.hide { animation: slideUp 0.3s ease-out; }
-        @keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
-        @keyframes slideUp { from { transform: translateY(0); } to { transform: translateY(-100%); } }
+        .connection-ribbon {
+            display: none;
+            background: #eeeeee;
+            padding: 0.5rem 1rem;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 13px;
+        }
+        .connection-ribbon.show { display: block; }
+        .connection-ribbon.hide { display: none; }
         
-        .ribbon-content { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-        .ribbon-text { color: #ffffff; font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; }
-        .ribbon-services { display: flex; gap: 1.5rem; align-items: center; }
+        .ribbon-content { max-width: 1200px; margin: 0 auto; }
+        .ribbon-text { color: #000000; display: inline; margin-right: 1rem; }
+        .ribbon-services,
+        .service-status,
+        .service-icon,
+        .service-icon svg,
+        .status-dot { display: none; }
         
-        .service-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: #888888; transition: color 0.3s; }
-        .service-status.connecting { color: #4e483d; }
-        .service-status.connected { color: #00ff88; }
-        .service-status.error { color: #ff4444; }
-        
-        .service-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
-        .service-icon svg { width: 100%; height: 100%; }
-        
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #888888; transition: background 0.3s; }
-        .service-status.connecting .status-dot { background: #ffaa00; animation: pulse 1.5s ease-in-out infinite; }
-        .service-status.connected .status-dot { background: #00ff88; }
-        .service-status.error .status-dot { background: #ff4444; }
-        
-        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
-        
-        .loading-bubbles { display: flex; gap: 0.25rem; align-items: center; }
-        .loading-bubble { width: 6px; height: 6px; background: #ffffff; border-radius: 50%; animation: bubble 1.4s ease-in-out infinite; }
-        .loading-bubble:nth-child(1) { animation-delay: 0s; }
-        .loading-bubble:nth-child(2) { animation-delay: 0.2s; }
-        .loading-bubble:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes bubble { 0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; } 40% { transform: scale(1.2); opacity: 1; } }
-        
-        /* Page Container */
         .page { min-height: 100vh; display: flex; flex-direction: column; }
         .page.hidden { display: none; }
         
-        /* Main Content */
-        .main-content { flex: 1; max-width: 1400px; width: 100%; margin: 0 auto; padding: 3rem 1.5rem; }
-        .page-header { margin-bottom: 3rem; }
-        .page-title { font-size: 2.5rem; font-weight: 300; margin-bottom: 0.5rem; letter-spacing: -0.03em; }
-        .page-subtitle { font-size: 1rem; color: #888888; line-height: 1.6; }
+        .main-content {
+            flex: 1;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        .page-header { margin-bottom: 1.5rem; }
+        .page-title {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 28px;
+            font-weight: bold;
+            margin: 0 0 0.5rem;
+        }
+        .page-subtitle { margin: 0; color: #000000; }
+        .validation-data {
+            margin: 1rem 0 1.5rem;
+            padding: 0;
+        }
+        .validation-data h3 {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0 0 0.5rem;
+        }
+        .validation-data p {
+            margin: 0 0 0.5rem;
+        }
+        .validation-data iframe {
+            display: block;
+            width: 100%;
+            height: 420px;
+            border: 0;
+            background: #ffffff;
+        }
         
-        /* Statistics */
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-        .stat-card { background: #111111; padding: 1.5rem; border-radius: 8px; }
-        .stat-label { font-size: 0.8rem; color: #888888; margin-bottom: 0.75rem; font-weight: 500; }
-        .stat-value { font-size: 1.75rem; font-weight: 300; letter-spacing: -0.02em; }
+        .stats-grid {
+            display: block;
+            margin: 0 0 1.5rem 0;
+            padding: 0;
+        }
+        .stat-card {
+            display: block;
+            background: transparent;
+            border-radius: 0;
+            padding: 0;
+            margin: 0.2rem 0;
+        }
+        .stat-label { display: inline; color: #000000; font-weight: bold; }
+        .stat-label::after { content: " "; }
+        .stat-value { display: inline; font-size: 1rem; font-weight: normal; }
         
-        /* Filters */
-        .filters { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; padding: 1.5rem; background: #111111; border-radius: 8px; }
-        .filter-group { display: flex; flex-direction: column; gap: 0.5rem; flex: 1; min-width: 180px; }
-        .filter-label { font-size: 0.85rem; font-weight: 500; color: #888888; }
-        .filter-select, .filter-input { background: #000000; border: 1px solid #333333; color: #ffffff; padding: 0.75rem; border-radius: 6px; font-size: 0.875rem; font-family: 'Inter', sans-serif; }
-        .filter-select:focus, .filter-input:focus { outline: none; border-color: #555555; }
-        .filter-button { background: #ffffff; color: #000000; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
-        .filter-button:hover { background: #e0e0e0; }
+        .filters {
+            display: block;
+            margin-bottom: 1.5rem;
+            padding: 0;
+            background: transparent;
+            border: 0;
+        }
+        .filter-group { display: inline-block; margin: 0 1rem 0.5rem 0; }
+        .filter-label {
+            display: block;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 13px;
+            font-weight: bold;
+            color: #000000;
+            margin-bottom: 0.2rem;
+        }
+        .filter-select,
+        .filter-input {
+            background: #ffffff;
+            border: 0;
+            color: #000000;
+            padding: 0.25rem;
+            border-radius: 0;
+            font-size: 14px;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        .filter-button {
+            background: #eeeeee;
+            color: #000000;
+            border: 0;
+            padding: 0.3rem 0.8rem;
+            border-radius: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+        }
         
-        /* Location Groups */
-        .location-groups { display: flex; flex-direction: column; gap: 1.5rem; }
-        .location-group { background: #111111; border-radius: 8px; padding: 1.5rem; }
-        .location-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; cursor: pointer; user-select: none; }
-        .location-info { flex: 1; }
-        .location-title { font-size: 1.1rem; font-weight: 500; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
-        .location-meta { display: flex; gap: 2rem; font-size: 0.875rem; color: #888888; flex-wrap: wrap; }
-        .location-toggle { font-size: 1.25rem; transition: transform 0.3s; flex-shrink: 0; }
-        .location-toggle.open { transform: rotate(180deg); }
+        .location-groups { display: block; }
+        .location-group {
+            background: transparent;
+            border-top: 0;
+            padding: 0.75rem 0 1.5rem;
+        }
+        .location-header { margin-bottom: 0.75rem; }
+        .location-info { display: block; }
+        .location-title {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+        .location-title i { display: none; }
+        .location-meta {
+            display: block;
+            font-size: 14px;
+            color: #000000;
+        }
+        .location-meta span { margin-right: 1rem; }
+        .location-toggle { display: none; }
         
-        /* Data Table */
-        .data-table-container { overflow: auto; display: none; max-height: 500px; }
+        .data-table-container { overflow: auto; display: block; max-height: none; }
         .data-table-container.open { display: block; }
-        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        .data-table th { text-align: left; padding: 0.75rem; background: #000000; color: #888888; font-weight: 500; border-bottom: 1px solid #222222; white-space: nowrap; }
-        .data-table td { padding: 0.75rem; border-top: 1px solid #1a1a1a; }
-        .data-table tr:hover { background: #0a0a0a; }
-        .data-table td.highlight { color: #ffcc00; font-weight: 500; }
+        .data-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: separate;
+            border-spacing: 0 0.2rem;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+        }
+        .data-table th {
+            text-align: left;
+            padding: 0.35rem;
+            background: transparent;
+            color: #000000;
+            font-weight: bold;
+            border: 0;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            line-height: 1.2;
+            vertical-align: top;
+        }
+        .data-table td {
+            padding: 0.35rem;
+            border: 0;
+            color: #000000;
+            overflow-wrap: anywhere;
+            vertical-align: top;
+        }
+        .data-table tr:hover { background: transparent; }
+        .data-table td.highlight { color: #000000; font-weight: normal; }
         
-        /* Device Badge */
-        .device-badge { display: inline-block; background: #222222; padding: 0.35rem 0.75rem; border-radius: 4px; cursor: help; font-size: 0.8rem; }
+        .device-badge {
+            display: inline;
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            cursor: help;
+            font-size: inherit;
+        }
         
-        /* Download Section */
-        .download-section { background: #111111; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
-        .download-info { flex: 1; min-width: 200px; }
-        .download-title { font-size: 1rem; font-weight: 500; margin-bottom: 0.25rem; }
-        .download-subtitle { font-size: 0.875rem; color: #888888; }
-        .download-buttons { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-        .download-btn { background: #222222; color: #ffffff; border: 1px solid #333333; padding: 0.625rem 1.25rem; border-radius: 6px; font-size: 0.875rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; }
-        .download-btn:hover { background: #2a2a2a; border-color: #444444; }
-        .download-btn i { font-size: 1rem; }
+        .download-section {
+            background: transparent;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            margin-bottom: 1.5rem;
+        }
+        .download-info { display: inline-block; margin-right: 1rem; }
+        .download-title {
+            display: inline;
+            font-family: Arial, Helvetica, sans-serif;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        .download-title::after { content: " "; }
+        .download-subtitle { display: inline; font-size: 14px; color: #000000; }
+        .download-buttons { display: inline; }
+        .download-btn {
+            background: #eeeeee;
+            color: #000000;
+            border: 0;
+            padding: 0.3rem 0.8rem;
+            border-radius: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14px;
+            font-weight: normal;
+            cursor: pointer;
+            display: inline-block;
+            margin: 0.25rem 0.25rem 0.25rem 0;
+        }
         
-        /* Download Section */
-        .download-section { background: #111111; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
-        .download-info { flex: 1; min-width: 200px; }
-        .download-title { font-size: 1rem; font-weight: 500; margin-bottom: 0.25rem; }
-        .download-subtitle { font-size: 0.875rem; color: #888888; }
-        .download-buttons { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-        .download-btn { background: #222222; color: #ffffff; border: 1px solid #333333; padding: 0.625rem 1.25rem; border-radius: 6px; font-size: 0.875rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; }
-        .download-btn:hover { background: #2a2a2a; border-color: #444444; }
-        .download-btn i { font-size: 1rem; }
+        .empty-state {
+            display: block;
+            min-height: 0;
+            text-align: left;
+            color: #000000;
+            padding-top: 1rem;
+        }
+        .hidden { display: none; }
         
-        /* Empty State */
-        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; text-align: center; gap: 1rem; color: #888888; }
-        .empty-state i { font-size: 3rem; }
-        
-        /* Header Styling */
-        .header { background: #000000; border-bottom: 1px solid #111111; }
-        .header-content { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+        .header { background: #000000; border-bottom: 0; }
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
         .header-brand { display: flex; align-items: center; gap: 1rem; }
-        .brand-logo { width: 5rem;  filter: brightness(0) invert(1); }
-        .brand-info { display: flex; flex-direction: column; }
-        .brand-title { font-size: 1.25rem; font-weight: 600; line-height: 1.2; margin: 0; }
-        .header-nav { display: flex; gap: 2rem; align-items: center; }
-        .header-nav a { color: #888888; text-decoration: none; font-size: 0.875rem; transition: color 0.2s; }
+        .brand-logo { width: 76px; filter: none; }
+        .brand-title {
+            font-family: Arial, Helvetica, sans-serif;
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: bold;
+            line-height: 1.2;
+            margin: 0;
+        }
+        .header-nav { display: block; }
+        .header-nav a {
+            color: #cccccc;
+            text-decoration: underline;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14px;
+            margin-left: 1rem;
+        }
         .header-nav a:hover, .header-nav a.active { color: #ffffff; }
         
-        /* Footer Styling */
-        .footer { margin-top: auto; display: flex; flex-direction: column;background: #000000; border-top: 1px solid #111111; padding: 3rem 0 0; }
-        .footer-container {width: 100%; margin: 0 auto; padding: 0 1.5rem 2rem; display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 3rem; }
-        .footer-section h4 { font-size: 0.875rem; font-weight: 600; margin-bottom: 1rem; color: #ffffff; }
+        .footer {
+            margin-top: auto;
+            background: #ffffff;
+            border-top: 0;
+            padding: 1rem 0 0;
+        }
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 0 0 2rem;
+            padding: 0 1rem 1rem;
+            display: block;
+        }
+        .footer-section { display: inline-block; vertical-align: top; margin: 0 3rem 1rem 0; max-width: 260px; }
+        .footer-section:first-child { margin-left: 1.5rem; margin-top: 1.2rem; }
+        .footer-section:nth-child(3) { margin-top: 2rem; }
+        .footer-section:nth-child(4) { margin-left: 2.5rem; }
+        .footer-section h4 {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 0 0 0.5rem;
+            color: #000000;
+        }
         .footer-section ul { list-style: none; }
-        .footer-section ul li { margin-bottom: 0.5rem; }
-        .footer-section ul li a { color: #888888; text-decoration: none; font-size: 0.875rem; transition: color 0.2s; }
-        .footer-section ul li a:hover { color: #ffffff; }
-        .footer-logo img { width: 120px; height: auto; filter: brightness(0.8); }
-        .footer-bottom { background: #000000; border-top: 1px solid #111111; padding: 1.5rem 0; text-align: center; }
-        .footer-bottom p { max-width: 1400px; margin: 0 auto; padding: 0 1.5rem; font-size: 0.75rem; color: #666666; }
+        .footer-section ul li { margin-bottom: 0.25rem; }
+        .footer-section ul li a { color: #000000; text-decoration: underline; font-size: 14px; }
+        .footer-logo img { width: 120px; height: auto; filter: none; }
+        .footer-bottom {
+            background: #ffffff;
+            border-top: 0;
+            padding: 0.75rem 0 0.75rem 3rem;
+            text-align: left;
+        }
+        .footer-bottom p {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            font-size: 12px;
+            color: #000000;
+        }
         
         @media (max-width: 768px) {
-            .page-title { font-size: 2rem; }
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            .filters { flex-direction: column; }
-            .location-meta { flex-direction: column; gap: 0.5rem; }
-            .data-table { font-size: 0.75rem; }
-            .data-table th, .data-table td { padding: 0.5rem; }
-            .header-nav { display: none; }
+            .header-content { display: block; }
+            .header-nav { margin-top: 0.75rem; }
+            .header-nav a { margin: 0 0.75rem 0 0; }
+            .filter-group { display: block; }
             .footer-container { grid-template-columns: 1fr; gap: 2rem; }
         }
     </style>
@@ -170,7 +339,7 @@
 <body>
     <!-- Loading Screen -->
     <div id="loadingScreen" class="loading-screen">
-        <img src="https://fiaos.org/assets/media/umbrella-logo-clean.png" alt="Fiaphy Logo" class="loading-logo">
+        <img src="https://fiaos.org/assets/media/fiaphy-clean.png" alt="FiaPhy logo" class="loading-logo">
         <div class="spinner">
             <svg class="circular" viewBox="25 25 50 50">
                 <circle class="path" cx="50" cy="50" r="20" fill="none" stroke-width="2" stroke-miterlimit="10"/>
@@ -184,37 +353,7 @@
         <div id="connectionRibbon" class="connection-ribbon">
             <div class="ribbon-content">
                 <div class="ribbon-text">
-                    <div class="loading-bubbles">
-                        <div class="loading-bubble"></div>
-                        <div class="loading-bubble"></div>
-                        <div class="loading-bubble"></div>
-                    </div>
-                    <span id="ribbonMessage">Establishing connections...</span>
-                </div>
-                <div class="ribbon-services">
-                    <div class="service-status" id="statusCloudflare">
-                        <div class="service-icon">
-                            <i class="bi bi-cloud"></i>
-                        </div>
-                        <span class="status-dot"></span>
-                        <span>Cloudflare</span>
-                    </div>
-                    <div class="service-status" id="statusSupabase">
-                        <div class="service-icon">
-                           <i class="bi bi-cloud"></i>
-                        </div>
-                        <span class="status-dot"></span>
-                        <span>Supabase</span>
-                    </div>
-                    <div class="service-status" id="statusServer">
-                        <div class="service-icon">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
-                            </svg>
-                        </div>
-                        <span class="status-dot"></span>
-                        <span>Storage 3 in Colombo</span>
-                    </div>
+                    <span id="ribbonMessage">Loading data.</span>
                 </div>
             </div>
         </div>
@@ -223,9 +362,9 @@
         <header class="header">
             <div class="header-content">
                 <div class="header-brand">
-                    <img src="https://fiaos.org/assets/media/umbrella-logo-clean.png" alt="Logo" class="brand-logo">
+                    <img src="https://fiaos.org/assets/media/fiaphy-clean.png" alt="FiaPhy" class="brand-logo">
                     <div class="brand-info">
-                        <h1 class="brand-title">Cloud Connections</h1>
+                        <h1 class="brand-title">Datasets</h1>
                     </div>
                 </div>
                 <nav class="header-nav">
@@ -240,30 +379,38 @@
         <main class="main-content">
             <!-- Page Header -->
             <div class="page-header">
-                <h2 class="page-title">Datasets</h2>
-                <p class="page-subtitle">High-quality data sets from all around the earth. From homes, gardens and from the middle of the ocean.</p>
+                <h2 class="page-title">Free data set</h2>
+                <p class="page-subtitle" style="color: #b00000;">This content is open to the general public. Please feel free to copy, share and use this data. Please cite our work when using it. The data is shared under Creative Commons Attribution NonCommercial NoDerivatives </p>
+                Cite paper: https://arxiv.org/abs/2604.15352
             </div>
+
+            <section class="validation-data">
+                <h3>Real pyranometer validation data</h3>
+                <p>These are the real pyranometer data files used to validate our FiaPhy model. Please also cite the Sri Lanka Department of Meteorology when using this validation material.</p>
+                <p><a href="https://drive.google.com/drive/folders/1Y3c9p3c7IMYtD5ZAhIumGnznyf22AQHg?usp=sharing" target="_blank" rel="noopener">Open the Google Drive folder</a></p>
+                <iframe src="https://drive.google.com/embeddedfolderview?id=1Y3c9p3c7IMYtD5ZAhIumGnznyf22AQHg#list" title="Real pyranometer validation data folder"></iframe>
+            </section>
 
             <!-- Statistics -->
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-label">Total Records</div>
+                    <div class="stat-label">Total number of records</div>
                     <div class="stat-value" id="totalRecords">--</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Unique Locations</div>
+                    <div class="stat-label">Total number of FiaPhy network nodes</div>
                     <div class="stat-value" id="uniqueLocations">--</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Countries</div>
+                    <div class="stat-label">Countries reached</div>
                     <div class="stat-value" id="uniqueCountries">--</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Last Update</div>
+                    <div class="stat-label">Latest data date</div>
                     <div class="stat-value" id="lastUpdate" style="font-size: 0.875rem;">--</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">First Data</div>
+                    <div class="stat-label">First data date</div>
                     <div class="stat-value" id="firstData" style="font-size: 0.875rem;">--</div>
                 </div>
             </div>
@@ -271,41 +418,38 @@
             <!-- Filters -->
             <div class="filters">
                 <div class="filter-group">
-                    <label class="filter-label">Country</label>
+                    <label class="filter-label">country</label>
                     <select class="filter-select" id="filterCountry">
                         <option value="">All Countries</option>
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label class="filter-label">Date From</label>
+                    <label class="filter-label">from this day</label>
                     <input type="date" class="filter-input" id="filterDateFrom">
                 </div>
                 <div class="filter-group">
-                    <label class="filter-label">Date To</label>
+                    <label class="filter-label">until this day</label>
                     <input type="date" class="filter-input" id="filterDateTo">
                 </div>
                 <div class="filter-group" style="justify-content: flex-end;">
-                    <button class="filter-button" id="applyFilters">Apply Filters</button>
+                    <button class="filter-button" id="applyFilters">show data</button>
                 </div>
             </div>
 
             <!-- Download Section -->
             <div class="download-section">
                 <div class="download-info">
-                    <div class="download-title">Export Data</div>
-                    <div class="download-subtitle">Download filtered dataset in your preferred format</div>
+                    <div class="download-title">take a copy</div>
+                    <div class="download-subtitle">current data shown here</div>
                 </div>
                 <div class="download-buttons">
                     <button class="download-btn" id="downloadCSV">
-                        <i class="bi bi-filetype-csv"></i>
                         CSV
                     </button>
                     <button class="download-btn" id="downloadTXT">
-                        <i class="bi bi-filetype-txt"></i>
                         TXT
                     </button>
                     <button class="download-btn" id="downloadPDF">
-                        <i class="bi bi-filetype-pdf"></i>
                         PDF
                     </button>
                 </div>
@@ -320,9 +464,8 @@
 
             <!-- Empty State -->
             <div id="emptyState" class="empty-state hidden">
-                <i class="bi bi-database"></i>
-                <h3>No Data Available</h3>
-                <p>Environmental monitoring data will appear here once devices start uploading</p>
+                <h3>No data here</h3>
+                <p>No records are available for the selected choices.</p>
             </div>
         </main>
 
@@ -333,7 +476,7 @@
                     <br>
                     <span style="font-weight: 400;">Future is Autonomous.</span>
                     <div class="footer-logo" style="margin-top: 1rem;">
-                        <img src="https://fiaos.org/assets/media/logo-satur.png" alt="Meta Logo">
+                        <img src="https://fiaos.org/assets/media/logo-satur.png" alt="FiaOS">
                     </div>
                 </div>
                 <div class="footer-section">
@@ -384,19 +527,36 @@
         let groupedData = {};
         let deviceNames = {};
 
+        const COUNTRY_COORDINATES = {
+            'Sri Lanka': { latitude: 7.8731, longitude: 80.7718 },
+            'India': { latitude: 20.5937, longitude: 78.9629 },
+            'United States': { latitude: 39.8283, longitude: -98.5795 },
+            'United Kingdom': { latitude: 55.3781, longitude: -3.4360 },
+            'Australia': { latitude: -25.2744, longitude: 133.7751 },
+            'Canada': { latitude: 56.1304, longitude: -106.3468 },
+            'Germany': { latitude: 51.1657, longitude: 10.4515 },
+            'France': { latitude: 46.2276, longitude: 2.2137 },
+            'Japan': { latitude: 36.2048, longitude: 138.2529 },
+            'China': { latitude: 35.8617, longitude: 104.1954 }
+        };
+
         // ==========================================
         // GENERATE DEVICE NAME FROM IP
         // ==========================================
-        function getDeviceName(ipAddress) {
-            if (!ipAddress) return 'Unknown';
-            
-            if (!deviceNames[ipAddress]) {
-                const deviceNumber = Object.keys(deviceNames).length + 1;
+        function getDeviceName(record) {
+            const country = record.country || 'unknown country';
+            const key = `${country}|${record.ip_address || record.device_id || 'device'}`;
+
+            if (!deviceNames[key]) {
+                const countryDevices = Object.keys(deviceNames).filter(name => name.startsWith(`${country}|`)).length;
+                const deviceNumber = countryDevices + 1;
                 const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                deviceNames[ipAddress] = letters[deviceNumber - 1];
+                const letter = letters[(deviceNumber - 1) % letters.length];
+                const number = Math.floor((deviceNumber - 1) / letters.length) + 1;
+                deviceNames[key] = `FiaPhy device ${country} ${letter}${number}`;
             }
             
-            return deviceNames[ipAddress];
+            return deviceNames[key];
         }
 
         // ==========================================
@@ -407,12 +567,48 @@
             const now = new Date();
             const seconds = Math.floor((now - date) / 1000);
             
-            if (seconds < 60) return 'just now';
-            if (seconds < 3600) return Math.floor(seconds / 60) + ' min ago';
-            if (seconds < 86400) return Math.floor(seconds / 3600) + ' hrs ago';
-            if (seconds < 2592000) return Math.floor(seconds / 86400) + ' days ago';
-            if (seconds < 31536000) return Math.floor(seconds / 2592000) + ' months ago';
-            return Math.floor(seconds / 31536000) + ' years ago';
+            if (seconds < 60) return 'new';
+            if (seconds < 3600) return Math.floor(seconds / 60) + ' minutes old';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + ' hours old';
+            if (seconds < 2592000) return Math.floor(seconds / 86400) + ' days old';
+            if (seconds < 31536000) return Math.floor(seconds / 2592000) + ' months old';
+            return Math.floor(seconds / 31536000) + ' years old';
+        }
+
+        function formatDataDate(timestamp) {
+            return new Date(timestamp).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: '2-digit'
+            });
+        }
+
+        function getCountryCoordinate(country) {
+            return COUNTRY_COORDINATES[country] || { latitude: 0, longitude: 0 };
+        }
+
+        function resolveRecordLocation(record) {
+            const latitude = Number(record.gps_latitude);
+            const longitude = Number(record.gps_longitude);
+
+            if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+                return {
+                    latitude,
+                    longitude,
+                    source: 'device'
+                };
+            }
+
+            const fallback = getCountryCoordinate(record.country || 'Unknown');
+            return {
+                latitude: fallback.latitude,
+                longitude: fallback.longitude,
+                source: 'country'
+            };
+        }
+
+        function formatNumber(value, decimals) {
+            return typeof value === 'number' ? value.toFixed(decimals) : '';
         }
 
         // ==========================================
@@ -420,22 +616,33 @@
         // ==========================================
         async function fetchHistoricalData() {
             try {
-                const response = await fetch(
-                    `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?order=timestamp.desc&limit=10000`,
-                    {
-                        headers: {
-                            'apikey': SUPABASE_KEY,
-                            'Authorization': `Bearer ${SUPABASE_KEY}`,
-                            'Content-Type': 'application/json'
+                const pageSize = 1000;
+                let offset = 0;
+                let records = [];
+
+                while (true) {
+                    const response = await fetch(
+                        `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?order=timestamp.desc&limit=${pageSize}&offset=${offset}`,
+                        {
+                            headers: {
+                                'apikey': SUPABASE_KEY,
+                                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                                'Content-Type': 'application/json'
+                            }
                         }
-                    }
-                );
+                    );
 
-                if (!response.ok) throw new Error('Failed to fetch data');
+                    if (!response.ok) throw new Error('Failed to fetch data');
 
-                const data = await response.json();
-                console.log(`Loaded ${data.length} historical records`);
-                return data;
+                    const page = await response.json();
+                    records = records.concat(page);
+
+                    if (page.length < pageSize) break;
+                    offset += pageSize;
+                }
+
+                console.log(`Loaded ${records.length} historical records`);
+                return records;
 
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -450,22 +657,18 @@
             const groups = {};
 
             data.forEach(record => {
-                let key;
-                if (record.gps_latitude && record.gps_longitude) {
-                    const lat = record.gps_latitude.toFixed(4);
-                    const lng = record.gps_longitude.toFixed(4);
-                    const country = record.country || 'Unknown';
-                    key = `${lat},${lng}|${country}`;
-                } else {
-                    const country = record.country || 'Unknown';
-                    key = `Unknown|${country}`;
-                }
+                const location = resolveRecordLocation(record);
+                const lat = location.latitude.toFixed(4);
+                const lng = location.longitude.toFixed(4);
+                const country = record.country || 'Unknown';
+                const key = `${lat},${lng}|${country}`;
 
                 if (!groups[key]) {
                     groups[key] = {
-                        latitude: record.gps_latitude,
-                        longitude: record.gps_longitude,
-                        country: record.country || 'Unknown',
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                        country,
+                        source: location.source,
                         records: []
                     };
                 }
@@ -481,12 +684,15 @@
         // ==========================================
         function updateStatistics(data) {
             const totalRecords = data.length;
-            const locations = new Set(data.map(r => `${r.gps_latitude},${r.gps_longitude}`).filter(l => l !== 'null,null'));
-            const countries = new Set(data.map(r => r.country).filter(c => c));
+            const locations = new Set(data.map(record => {
+                const location = resolveRecordLocation(record);
+                return `${location.latitude.toFixed(4)},${location.longitude.toFixed(4)}|${record.country || 'Unknown'}`;
+            }));
+            const countries = new Set(data.map(r => r.country || 'Unknown').filter(c => c));
 
-            document.getElementById('totalRecords').textContent = totalRecords.toLocaleString();
-            document.getElementById('uniqueLocations').textContent = locations.size || '0';
-            document.getElementById('uniqueCountries').textContent = countries.size || '0';
+            document.getElementById('totalRecords').textContent = `${totalRecords.toLocaleString()} records`;
+            document.getElementById('uniqueLocations').textContent = `${locations.size || 0} FiaPhy devices spread all across the world`;
+            document.getElementById('uniqueCountries').textContent = `${countries.size || 0} countries`;
 
             if (data.length > 0) {
                 const sorted = [...data].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -494,8 +700,8 @@
                 const newestTimestamp = sorted[0].timestamp;
                 const oldestTimestamp = sorted[sorted.length - 1].timestamp;
                 
-                document.getElementById('lastUpdate').textContent = timeAgo(newestTimestamp);
-                document.getElementById('firstData').textContent = 'From ' + timeAgo(oldestTimestamp);
+                document.getElementById('lastUpdate').textContent = `${formatDataDate(newestTimestamp)} ${timeAgo(newestTimestamp)}`;
+                document.getElementById('firstData').textContent = `${formatDataDate(oldestTimestamp)} ${timeAgo(oldestTimestamp)}`;
             }
         }
 
@@ -544,27 +750,25 @@
                 
                 const titleSpan = document.createElement('div');
                 titleSpan.className = 'location-title';
-                titleSpan.innerHTML = `<i class="bi bi-geo-alt"></i> ${group.country}`;
+                const latitude = group.latitude.toFixed(4);
+                const longitude = group.longitude.toFixed(4);
+                const locationSourceText = group.source === 'country' ? 'country position used' : 'device position used';
+                titleSpan.textContent = `${group.country} latitude ${latitude} longitude ${longitude} ${locationSourceText}`;
                 
                 const metaSpan = document.createElement('div');
                 metaSpan.className = 'location-meta';
                 metaSpan.innerHTML = `
                     <span>${group.records.length} records</span>
-                    <span>Latest: ${timeAgo(group.records[0].timestamp)}</span>
+                    <span>latest record is ${formatDataDate(group.records[0].timestamp)} ${timeAgo(group.records[0].timestamp)}</span>
                 `;
                 
                 infoDiv.appendChild(titleSpan);
                 infoDiv.appendChild(metaSpan);
 
-                const toggleDiv = document.createElement('div');
-                toggleDiv.className = 'location-toggle';
-                toggleDiv.innerHTML = '<i class="bi bi-chevron-down"></i>';
-
                 header.appendChild(infoDiv);
-                header.appendChild(toggleDiv);
 
                 const tableContainer = document.createElement('div');
-                tableContainer.className = 'data-table-container';
+                tableContainer.className = 'data-table-container open';
                 
                 const table = document.createElement('table');
                 table.className = 'data-table';
@@ -572,52 +776,37 @@
                 const thead = document.createElement('thead');
                 thead.innerHTML = `
                     <tr>
-                        <th>Timestamp</th>
-                        <th>Temp (Â°C)</th>
-                        <th>Humidity (%)</th>
-                        <th>Pressure (hPa)</th>
-                        <th class="highlight">Solar (W/mÂ²)</th>
-                        <th class="highlight">Heat Flux (W/mÂ²)</th>
-                        <th>Î”T (Â°C)</th>
+                        <th>Time</th>
+                        <th>Temperature level</th>
+                        <th>Humidity level as percentage</th>
+                        <th>Pressure measured in hectopascals</th>
+                        <th>Solar radiation measured in watts per square meter</th>
+                        <th>Heat flux measured in watts per square meter</th>
+                        <th>Difference between reference sensor and flux node</th>
                         <th>Device</th>
                     </tr>
                 `;
                 table.appendChild(thead);
                 
                 const tbody = document.createElement('tbody');
-                group.records.slice(0, 50).forEach(record => {
+                group.records.forEach(record => {
                     const row = document.createElement('tr');
-                    const deviceName = getDeviceName(record.ip_address);
+                    const deviceName = getDeviceName(record);
                     const timestamp = new Date(record.timestamp).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
                     row.innerHTML = `
                         <td>${timestamp}</td>
-                        <td>${record.temperature.toFixed(1)}</td>
-                        <td>${record.humidity.toFixed(0)}</td>
-                        <td>${record.air_pressure.toFixed(1)}</td>
-                        <td class="highlight">${record.solar_radiation.toFixed(0)}</td>
-                        <td class="highlight">${record.heat_flux.toFixed(1)}</td>
-                        <td>${record.delta_temperature.toFixed(2)}</td>
-                        <td><span class="device-badge" title="IP: ${record.ip_address || 'N/A'}">Device ${deviceName}</span></td>
+                        <td>${formatNumber(record.temperature, 1)}</td>
+                        <td>${formatNumber(record.humidity, 0)}</td>
+                        <td>${formatNumber(record.air_pressure, 1)}</td>
+                        <td class="highlight">${formatNumber(record.solar_radiation, 0)}</td>
+                        <td class="highlight">${formatNumber(record.heat_flux, 1)}</td>
+                        <td>${formatNumber(record.delta_temperature, 2)}</td>
+                        <td><span class="device-badge" title="IP ${record.ip_address || 'not supplied'}">${deviceName}</span></td>
                     `;
                     tbody.appendChild(row);
                 });
                 table.appendChild(tbody);
                 tableContainer.appendChild(table);
-                
-                if (group.records.length > 50) {
-                    const moreInfo = document.createElement('p');
-                    moreInfo.style.textAlign = 'center';
-                    moreInfo.style.padding = '1rem';
-                    moreInfo.style.color = '#888';
-                    moreInfo.style.fontSize = '0.875rem';
-                    moreInfo.textContent = `Showing 50 of ${group.records.length} records`;
-                    tableContainer.appendChild(moreInfo);
-                }
-
-                header.addEventListener('click', () => {
-                    tableContainer.classList.toggle('open');
-                    toggleDiv.classList.toggle('open');
-                });
 
                 groupDiv.appendChild(header);
                 groupDiv.appendChild(tableContainer);
@@ -677,7 +866,7 @@
         }
 
         function downloadCSV(data) {
-            const headers = ['Timestamp', 'Temperature (°C)', 'Humidity (%)', 'Air Pressure (hPa)', 'Solar Radiation (W/m²)', 'Heat Flux (W/m²)', 'Delta Temperature (°C)', 'GPS Latitude', 'GPS Longitude', 'Country', 'IP Address', 'Device ID'];
+            const headers = ['Time', 'Temperature level', 'Humidity level as percentage', 'Pressure measured in hectopascals', 'Solar radiation measured in watts per square meter', 'Heat flux measured in watts per square meter', 'Difference between reference sensor and flux node', 'Latitude', 'Longitude', 'Country', 'IP Address', 'Device ID'];
             const csvContent = [
                 headers.join(','),
                 ...data.map(row => [
@@ -700,28 +889,28 @@
         }
 
         function downloadTXT(data) {
-            let txtContent = 'Fiaphy Environmental Monitoring Data\n';
+            let txtContent = 'FiaPhy free data set\n';
             txtContent += '='.repeat(60) + '\n';
-            txtContent += `Total Records: ${data.length}\n`;
-            txtContent += `Export Date: ${new Date().toLocaleString()}\n`;
+            txtContent += `total number of records ${data.length}\n`;
+            txtContent += `copy made on ${new Date().toLocaleString()}\n`;
             txtContent += '='.repeat(60) + '\n\n';
 
             data.forEach((row, index) => {
-                txtContent += `Record #${index + 1}\n`;
+                txtContent += `record ${index + 1}\n`;
                 txtContent += '-'.repeat(60) + '\n';
-                txtContent += `Timestamp: ${new Date(row.timestamp).toLocaleString()}\n`;
-                txtContent += `Temperature: ${row.temperature || 'N/A'} °C\n`;
-                txtContent += `Humidity: ${row.humidity || 'N/A'} %\n`;
-                txtContent += `Air Pressure: ${row.air_pressure || 'N/A'} hPa\n`;
-                txtContent += `Solar Radiation: ${row.solar_radiation || 'N/A'} W/m²\n`;
-                txtContent += `Heat Flux: ${row.heat_flux || 'N/A'} W/m²\n`;
-                txtContent += `Delta Temperature: ${row.delta_temperature || 'N/A'} °C\n`;
+                txtContent += `time ${new Date(row.timestamp).toLocaleString()}\n`;
+                txtContent += `temperature level ${row.temperature || 'N/A'}\n`;
+                txtContent += `humidity level as percentage ${row.humidity || 'N/A'}\n`;
+                txtContent += `pressure measured in hectopascals ${row.air_pressure || 'N/A'}\n`;
+                txtContent += `solar radiation measured in watts per square meter ${row.solar_radiation || 'N/A'}\n`;
+                txtContent += `heat flux measured in watts per square meter ${row.heat_flux || 'N/A'}\n`;
+                txtContent += `difference between reference sensor and flux node ${row.delta_temperature || 'N/A'}\n`;
                 if (row.gps_latitude && row.gps_longitude) {
-                    txtContent += `GPS: ${row.gps_latitude}, ${row.gps_longitude}\n`;
+                    txtContent += `position ${row.gps_latitude}, ${row.gps_longitude}\n`;
                 }
-                txtContent += `Country: ${row.country || 'N/A'}\n`;
-                txtContent += `IP Address: ${row.ip_address || 'N/A'}\n`;
-                txtContent += `Device ID: ${row.device_id || 'N/A'}\n`;
+                txtContent += `country ${row.country || 'N/A'}\n`;
+                txtContent += `IP address ${row.ip_address || 'N/A'}\n`;
+                txtContent += `device ID ${row.device_id || 'N/A'}\n`;
                 txtContent += '\n';
             });
 
@@ -734,34 +923,34 @@
                 <html>
                 <head>
                     <meta charset="UTF-8">
-                    <title>Fiaphy Environmental Data<\/title>
+                    <title>FiaPhy free data set<\/title>
                     <style>
                         body { font-family: Arial, sans-serif; margin: 20px; color: #000; }
                         h1 { font-size: 20px; margin-bottom: 10px; }
                         .info { margin-bottom: 20px; font-size: 12px; color: #666; }
                         table { width: 100%; border-collapse: collapse; font-size: 10px; }
-                        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
-                        th { background-color: #f2f2f2; font-weight: bold; }
+                        th, td { border: 0; padding: 6px; text-align: left; }
+                        th { background-color: #fff; font-weight: bold; }
                         tr:nth-child(even) { background-color: #f9f9f9; }
-                        .highlight { color: #ff9900; font-weight: bold; }
+                        .highlight { color: #000; font-weight: normal; }
                     <\/style>
                 <\/head>
                 <body>
-                    <h1>Fiaphy Environmental Monitoring Data</h1>
+                    <h1>FiaPhy free data set</h1>
                     <div class="info">
-                        <p>Total Records: ${data.length}</p>
-                        <p>Export Date: ${new Date().toLocaleString()}</p>
+                        <p>total number of records ${data.length}</p>
+                        <p>copy made on ${new Date().toLocaleString()}</p>
                     </div>
                     <table>
                         <thead>
                             <tr>
-                                <th>Timestamp<\/th>
-                                <th>Temp (°C)<\/th>
-                                <th>Humidity (%)<\/th>
-                                <th>Pressure (hPa)<\/th>
-                                <th class="highlight">Solar (W/m²)<\/th>
-                                <th class="highlight">Heat Flux (W/m²)<\/th>
-                                <th>ΔTemp (°C)<\/th>
+                                <th>Time<\/th>
+                                <th>Temperature level<\/th>
+                                <th>Humidity level as percentage<\/th>
+                                <th>Pressure measured in hectopascals<\/th>
+                                <th class="highlight">Solar radiation measured in watts per square meter<\/th>
+                                <th class="highlight">Heat flux measured in watts per square meter<\/th>
+                                <th>Difference between reference sensor and flux node<\/th>
                                 <th>Country<\/th>
                                 <th>Device<\/th>
                             <\/tr>
@@ -770,7 +959,7 @@
             `;
 
             data.forEach(row => {
-                const deviceName = getDeviceName(row.ip_address);
+                const deviceName = getDeviceName(row);
                 htmlContent += `
                     <tr>
                         <td>${new Date(row.timestamp).toLocaleString()}<\/td>
@@ -847,24 +1036,15 @@
         async function init() {
             console.log('Initializing datasets page...');
 
-            // Hide loading screen, show page with connection ribbon
+            // Hide loading screen and show the page.
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('page').classList.remove('hidden');
             showConnectionRibbon();
-
-            // Simulate connection sequence
-            updateConnectionStatus('Cloudflare', 'connecting', 'Connecting to Cloudflare CDN...');
-            await new Promise(resolve => setTimeout(resolve, 500));
-            updateConnectionStatus('Cloudflare', 'connected', 'Cloudflare connected');
             
-            updateConnectionStatus('Supabase', 'connecting', 'Connecting to Supabase database...');
-            await new Promise(resolve => setTimeout(resolve, 300));
-            updateConnectionStatus('Supabase', 'connected', 'Database connected');
-            
-            updateConnectionStatus('Server', 'connecting', 'Fetching data from main server...');
+            updateConnectionStatus('Server', 'connecting', 'Loading records...');
             allData = await fetchHistoricalData();
             filteredData = allData;
-            updateConnectionStatus('Server', 'connected', 'Data loaded successfully');
+            updateConnectionStatus('Server', 'connected', `${allData.length.toLocaleString()} records loaded.`);
 
             // Process data
             groupedData = groupDataByLocation(filteredData);
@@ -872,10 +1052,9 @@
             populateCountryFilter(allData);
             renderLocationGroups(groupedData);
 
-            // Hide ribbon after 2 seconds
             setTimeout(() => {
                 hideConnectionRibbon();
-            }, 2000);
+            }, 1000);
 
             console.log('Datasets page loaded');
         }

@@ -40,7 +40,7 @@
         .ribbon-services { display: flex; gap: 1.5rem; align-items: center; }
         
         .service-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: #888888; transition: color 0.3s; }
-        .service-status.connecting { color: #ffaa00; }
+        .service-status.connecting { color: #4e483d; }
         .service-status.connected { color: #00ff88; }
         .service-status.error { color: #ff4444; }
         
@@ -194,18 +194,14 @@
                 <div class="ribbon-services">
                     <div class="service-status" id="statusCloudflare">
                         <div class="service-icon">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M14.5 10.33h6.67c.41 0 .74-.33.74-.74 0-4.09-3.31-7.4-7.4-7.4-3.37 0-6.21 2.25-7.11 5.32-.23-.03-.46-.05-.7-.05-2.7 0-4.9 2.2-4.9 4.9 0 .27.02.54.07.8.05.26.28.45.54.45h11.09c.41 0 .74-.33.74-.74s-.33-.74-.74-.74H3.14c-.1-.33-.15-.68-.15-1.04 0-1.88 1.52-3.4 3.4-3.4.38 0 .74.06 1.08.17.3.1.63-.03.8-.29.81-1.24 2.17-2.06 3.74-2.06 2.43 0 4.41 1.98 4.41 4.41 0 .41.33.74.74.74z"/>
-                            </svg>
+                            <i class="bi bi-cloud"></i>
                         </div>
                         <span class="status-dot"></span>
                         <span>Cloudflare</span>
                     </div>
                     <div class="service-status" id="statusSupabase">
                         <div class="service-icon">
-                            <svg viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M13.5 2c-.8 0-1.5.7-1.5 1.5v9c0 .3.2.5.5.5h9c.8 0 1.5-.7 1.5-1.5 0-4.7-3.8-8.5-8.5-8.5h-1zm-1 18.5c0 .8.7 1.5 1.5 1.5h1c4.7 0 8.5-3.8 8.5-8.5 0-.8-.7-1.5-1.5-1.5h-9c-.3 0-.5.2-.5.5v8zm-10-10c0-.8.7-1.5 1.5-1.5h1c4.7 0 8.5 3.8 8.5 8.5 0 .8-.7 1.5-1.5 1.5h-9c-.3 0-.5-.2-.5-.5v-8z"/>
-                            </svg>
+                           <i class="bi bi-cloud"></i>
                         </div>
                         <span class="status-dot"></span>
                         <span>Supabase</span>
@@ -217,7 +213,7 @@
                             </svg>
                         </div>
                         <span class="status-dot"></span>
-                        <span>Main Server</span>
+                        <span>Storage 3 in Colombo</span>
                     </div>
                 </div>
             </div>
@@ -738,7 +734,7 @@
                 <html>
                 <head>
                     <meta charset="UTF-8">
-                    <title>Fiaphy Environmental Data</title>
+                    <title>Fiaphy Environmental Data<\/title>
                     <style>
                         body { font-family: Arial, sans-serif; margin: 20px; color: #000; }
                         h1 { font-size: 20px; margin-bottom: 10px; }
@@ -748,8 +744,8 @@
                         th { background-color: #f2f2f2; font-weight: bold; }
                         tr:nth-child(even) { background-color: #f9f9f9; }
                         .highlight { color: #ff9900; font-weight: bold; }
-                    </style>
-                </head>
+                    <\/style>
+                <\/head>
                 <body>
                     <h1>Fiaphy Environmental Monitoring Data</h1>
                     <div class="info">
@@ -759,17 +755,17 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>Timestamp</th>
-                                <th>Temp (°C)</th>
-                                <th>Humidity (%)</th>
-                                <th>Pressure (hPa)</th>
-                                <th class="highlight">Solar (W/m²)</th>
-                                <th class="highlight">Heat Flux (W/m²)</th>
-                                <th>ΔTemp (°C)</th>
-                                <th>Country</th>
-                                <th>Device</th>
-                            </tr>
-                        </thead>
+                                <th>Timestamp<\/th>
+                                <th>Temp (°C)<\/th>
+                                <th>Humidity (%)<\/th>
+                                <th>Pressure (hPa)<\/th>
+                                <th class="highlight">Solar (W/m²)<\/th>
+                                <th class="highlight">Heat Flux (W/m²)<\/th>
+                                <th>ΔTemp (°C)<\/th>
+                                <th>Country<\/th>
+                                <th>Device<\/th>
+                            <\/tr>
+                        <\/thead>
                         <tbody>
             `;
 
@@ -777,24 +773,24 @@
                 const deviceName = getDeviceName(row.ip_address);
                 htmlContent += `
                     <tr>
-                        <td>${new Date(row.timestamp).toLocaleString()}</td>
-                        <td>${row.temperature?.toFixed(2) || 'N/A'}</td>
-                        <td>${row.humidity?.toFixed(2) || 'N/A'}</td>
-                        <td>${row.air_pressure?.toFixed(2) || 'N/A'}</td>
-                        <td class="highlight">${row.solar_radiation?.toFixed(2) || 'N/A'}</td>
-                        <td class="highlight">${row.heat_flux?.toFixed(2) || 'N/A'}</td>
-                        <td>${row.delta_temperature?.toFixed(2) || 'N/A'}</td>
-                        <td>${row.country || 'N/A'}</td>
-                        <td>${deviceName}</td>
-                    </tr>
+                        <td>${new Date(row.timestamp).toLocaleString()}<\/td>
+                        <td>${row.temperature?.toFixed(2) || 'N/A'}<\/td>
+                        <td>${row.humidity?.toFixed(2) || 'N/A'}<\/td>
+                        <td>${row.air_pressure?.toFixed(2) || 'N/A'}<\/td>
+                        <td class="highlight">${row.solar_radiation?.toFixed(2) || 'N/A'}<\/td>
+                        <td class="highlight">${row.heat_flux?.toFixed(2) || 'N/A'}<\/td>
+                        <td>${row.delta_temperature?.toFixed(2) || 'N/A'}<\/td>
+                        <td>${row.country || 'N/A'}<\/td>
+                        <td>${deviceName}<\/td>
+                    <\/tr>
                 `;
             });
 
             htmlContent += `
-                        </tbody>
-                    </table>
-                </body>
-                </html>
+                        <\/tbody>
+                    <\/table>
+                <\/body>
+                <\/html>
             `;
 
             const printWindow = window.open('', '_blank');

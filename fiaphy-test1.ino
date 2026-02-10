@@ -1,15 +1,21 @@
 /*
- * FiaPhy DTDSS - OPTIMIZED TRANSMISSION
+ * FiaPhy DTDSS - OPTIMIZED TRANSMISSION (FINAL STABLE BUILD + RTC)
  * - FEATURES: 
- * 1. Auto-Redirects browser to new IP after connection.
- * 2. Loads external Cloud Uploader script (device-uploader.js) for Supabase sync.
- * 3. Robust Wi-Fi Connection logic (AP+STA Hybrid).
+ * 1. Auto-Redirects browser to new IP.
+ * 2. Loads external Cloud Uploader script.
+ * 3. Robust Wi-Fi Connection logic.
+ * 4. EEPROM Offline Storage (Pins 6/7) - TRIGGERED BY TIMEOUT (60s Interval).
+ * 5. RGB LED Status (Pins 16/17/18) - HEARTBEAT LOGIC ADDED.
+ * 6. RECOVERY API - Streams stored data on reconnect.
+ * 7. [NEW] RTC DS3231 Integration (Wire1) - Auto Syncs with Browser Time.
  */
 
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include <FiaPhy.h>
+#include <EEPROM.h> 
+#include <RTClib.h> // [NEW] Added for Real Time Clock
 
 // ==========================================
 // 1. WIFI CONFIGURATION
@@ -25,25 +31,41 @@
 #define PIN_SCL 5 // GP5
 #define LED_PIN LED_BUILTIN 
 
-const float FILTER_FACTOR = 0.20f; 
+// --- HARDWARE DEFINITIONS ---
+#define PIN_EEPROM_SDA 8
+#define PIN_EEPROM_SCL 9
+#define EEPROM_I2C_ADDR 0x50 
+
+#define PIN_RGB_R 16
+#define PIN_RGB_G 17
+#define PIN_RGB_B 18
+
+const float FILTER_FACTOR = 0.20f;
 const float LATITUDE = 6.9271f;
 const float LONGITUDE = 79.8612f;
 const float ALTITUDE_M = 5.0f;
-
 const unsigned long SAMPLE_INTERVAL_MS = 1000;
 unsigned long last_trigger_time = 0;
 
-// State variables for non-blocking read
+// State variables
 bool waiting_for_sensor_read = false;
 unsigned long sensor_read_start_time = 0;
 
-// GLOBAL IP STORAGE (For Redirect)
+// GLOBAL IP STORAGE
 String currentStationIP = "0.0.0.0";
+bool isCloudMode = false;
+// [NEW] HEARTBEAT VARIABLE
+unsigned long lastClientRequestTime = 0; // Tracks the last time the browser asked for data
+
+// [NEW] OFFLINE LOGGING TIMER
+unsigned long lastOfflineLogTime = 0;
+const unsigned long OFFLINE_LOG_INTERVAL = 60000; // 60 Seconds
 
 // --- OBJECTS ---
-Adafruit_BME280 bme_ref;  // 0x76 
-Adafruit_BME280 bme_flux; // 0x77 
+Adafruit_BME280 bme_ref;
+Adafruit_BME280 bme_flux; 
 FiaPhy::DTDSS dtdss;      
+RTC_DS3231 rtc; // [NEW] RTC Object
 
 // --- STORAGE ---
 struct FilteredData {
@@ -58,6 +80,31 @@ float res_ghi = 0;
 float res_flux = 0;
 float res_delta_t = 0;
 bool data_valid = false;
+
+// ==========================================
+// EEPROM & LED MANAGEMENT
+// ==========================================
+
+struct OfflinePacket {
+    unsigned long timestamp; // Now stores RTC Unix Time
+    float ghi;
+    float flux;
+    float temp;
+    float hum;
+};
+
+enum LEDColor { LED_OFF, LED_RED, LED_GREEN, LED_BLUE, LED_WHITE, LED_ORANGE };
+enum LEDMode { MODE_SOLID, MODE_BLINK };
+
+LEDColor currentLedColor = LED_OFF;
+LEDMode currentLedMode = MODE_SOLID;
+unsigned long ledTimer = 0;
+bool ledState = false;
+unsigned long cloudModeStartTime = 0;
+
+// EEPROM
+int eepromWriteIndex = 0;
+const int MAX_PACKETS = 100;
 
 // ==========================================
 // 3. EMBEDDED WEBSITE RESOURCES
@@ -115,10 +162,7 @@ const char PROGMEM HTML_PART_1[] = R"====(
         .footer { background: #000000; padding: 2rem 0; margin-top: auto; border-top: 1px solid #111111; }
         .footer-content { max-width: 1400px; margin: 0 auto; padding: 0 1.5rem; }
         .footer-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; margin-bottom: 2rem; }
-        .footer-logo img { width: 50%; max-width: 150px; height: auto; 
-            /* Violet-Red Filter */
-            filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(280deg);
-        }
+        .footer-logo img { width: 50%; max-width: 150px; height: auto; filter: brightness(0) invert(1) sepia(1) saturate(5) hue-rotate(280deg); }
         .footer-column h4 { font-size: 0.875rem; font-weight: 600; margin-bottom: 1rem; color: #ffffff; }
         .footer-column ul { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
         .footer-column a { font-size: 0.875rem; color: #888888; text-decoration: none; }
@@ -143,7 +187,6 @@ const char PROGMEM HTML_PART_1[] = R"====(
 <body>
     <div id="loadingScreen" class="loading-screen">
         <img alt="Fiaphy Logo" class="loading-logo" src=")====";
-
 // ... INSERT LOGO_DATA_URI HERE ...
 
 const char PROGMEM HTML_PART_2[] = R"====(" />
@@ -154,7 +197,6 @@ const char PROGMEM HTML_PART_2[] = R"====(" />
             <div class="header-content">
                 <div class="header-brand">
                         <img alt="Logo" class="brand-logo" src=")====";
-
 // ... INSERT LOGO_DATA_URI HERE ...
 
 const char PROGMEM HTML_PART_3[] = R"====(" />
@@ -182,7 +224,7 @@ const char PROGMEM HTML_PART_3[] = R"====(" />
                 <div class="data-card"><div class="data-card-header"><span class="data-label">Delta Temperature</span></div><div class="data-value"><span id="deltaTemperature" class="value-number">--</span><span class="value-unit">°C</span></div></div>
             </div>
             <div class="privacy-notice"><p><strong>Data Privacy:</strong> These measurements are local and not connected to the internet.</p></div>
-            <div class="learn-more-section"><p><a style="color:white; " href="https://fiaos.org/about" target="_blank" rel="noopener">Learn more about this project →</a></p></div>
+            <div class="learn-more-section"><p><a style="color:white;" href="https://fiaos.org/about" target="_blank" rel="noopener">Learn more about this project →</a></p></div>
         </main>
         <footer class="footer">
             <div class="footer-content">
@@ -232,7 +274,6 @@ const char PROGMEM HTML_PART_4[] = R"====(" alt="" />
             const m = document.getElementById('wifiModal');
             document.getElementById('btnConnect').onclick = () => m.classList.remove('hidden');
             document.getElementById('btnCancel').onclick = () => m.classList.add('hidden');
-            
             document.getElementById('btnSave').onclick = async () => {
                 const s = document.getElementById('ssid').value;
                 const p = document.getElementById('pass').value;
@@ -280,9 +321,24 @@ const char PROGMEM HTML_PART_4[] = R"====(" alt="" />
     const FiaphyAPI = {
         config: { apiEndpoint: '/api/data', updateInterval: 2000 },
         isConnected: false,
-        init() { this.checkConnection(); },
+        init() { 
+            this.checkConnection();
+            // [NEW] AUTO-SYNC RTC WITH BROWSER TIME
+            this.syncTime();
+        },
         async checkConnection() {
             try { this.isConnected = true; return true; } catch (e) { this.isConnected = false; return false; }
+        },
+        // [NEW] Function to send browser time to Pico
+        async syncTime() {
+            try {
+                // Get current timestamp in seconds
+                const ts = Math.floor(Date.now() / 1000);
+                await fetch(`/api/time?t=${ts}`);
+                console.log("Time Sync Sent: " + ts);
+            } catch(e) {
+                console.log("Time Sync Failed");
+            }
         },
         async fetchData() {
             // Added Timeout to prevent hanging
@@ -314,7 +370,6 @@ const char PROGMEM HTML_PART_4[] = R"====(" alt="" />
         },
         stopPolling(id) { if (id) clearInterval(id); }
     };
-
     // ==================== UI.JS ====================
     const FiaphyUI = {
         elements: {},
@@ -384,7 +439,6 @@ const char PROGMEM HTML_PART_4[] = R"====(" alt="" />
                     this.isInitialized = true;
                 }
             }, 4000);
-
             try {
                 FiaphyUI.init();
                 FiaphyAPI.init();
@@ -412,7 +466,6 @@ const char PROGMEM HTML_PART_4[] = R"====(" alt="" />
         },
         cleanup() { this.stopDataPolling(); }
     };
-
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => FiaphyApp.init());
     else FiaphyApp.init();
     document.addEventListener('visibilitychange', () => FiaphyApp.handleVisibilityChange());
@@ -443,6 +496,95 @@ String getUrlParam(String request, String param) {
     return value;
 }
 
+// [NEW] EEPROM HELPER FUNCTIONS
+void writeEEPROMPacket(OfflinePacket p) {
+    // Address calculation (start after simple header)
+    int addr = 10 + (eepromWriteIndex * sizeof(OfflinePacket));
+    
+    // Simple I2C write implementation for EEPROM on Wire1
+    Wire1.beginTransmission(EEPROM_I2C_ADDR);
+    Wire1.write((int)(addr >> 8));   // MSB
+    Wire1.write((int)(addr & 0xFF)); // LSB
+    
+    // Write struct as bytes
+    const byte* pData = (const byte*)(const void*)&p;
+    for (size_t i = 0; i < sizeof(OfflinePacket); i++) {
+        Wire1.write(*pData++);
+    }
+    Wire1.endTransmission();
+    delay(5); // EEPROM write cycle delay
+    
+    eepromWriteIndex = (eepromWriteIndex + 1) % MAX_PACKETS;
+}
+
+// [ADDED] Read helper for recovery
+OfflinePacket readEEPROMPacket(int index) {
+    OfflinePacket p;
+    int addr = 10 + (index * sizeof(OfflinePacket));
+    
+    Wire1.beginTransmission(EEPROM_I2C_ADDR);
+    Wire1.write((int)(addr >> 8));
+    Wire1.write((int)(addr & 0xFF));
+    Wire1.endTransmission();
+    
+    Wire1.requestFrom(EEPROM_I2C_ADDR, sizeof(OfflinePacket));
+    byte* pData = (byte*)(void*)&p;
+    for (size_t i = 0; i < sizeof(OfflinePacket); i++) {
+       if (Wire1.available()) *pData++ = Wire1.read();
+    }
+    return p;
+}
+
+void wipeEEPROM() {
+    // Reset index to simulate wipe. 
+    eepromWriteIndex = 0;
+}
+
+// [NEW] LED HELPER FUNCTIONS
+void setLED(LEDColor color, LEDMode mode) {
+    currentLedColor = color;
+    currentLedMode = mode;
+}
+
+void updateLED() {
+    if (currentLedColor == LED_OFF) {
+        digitalWrite(PIN_RGB_R, LOW);
+        digitalWrite(PIN_RGB_G, LOW);
+        digitalWrite(PIN_RGB_B, LOW);
+        return;
+    }
+
+    bool state = true;
+    if (currentLedMode == MODE_BLINK) {
+        if (millis() - ledTimer > 500) {
+            ledTimer = millis();
+            ledState = !ledState;
+        }
+        state = ledState;
+    }
+
+    // Reset all
+    digitalWrite(PIN_RGB_R, LOW);
+    digitalWrite(PIN_RGB_G, LOW);
+    digitalWrite(PIN_RGB_B, LOW);
+    if (state) {
+        switch (currentLedColor) {
+            case LED_RED: digitalWrite(PIN_RGB_R, HIGH); break;
+            case LED_GREEN: digitalWrite(PIN_RGB_G, HIGH); break;
+            case LED_BLUE: digitalWrite(PIN_RGB_B, HIGH); break;
+            case LED_WHITE: 
+                digitalWrite(PIN_RGB_R, HIGH);
+                digitalWrite(PIN_RGB_G, HIGH);
+                digitalWrite(PIN_RGB_B, HIGH);
+                break;
+            case LED_ORANGE: 
+                digitalWrite(PIN_RGB_R, HIGH);
+                digitalWrite(PIN_RGB_G, HIGH);
+                break;
+        }
+    }
+}
+
 void softStartSystem(float t, float h, float p) {
     Serial.println("Performing Soft-Start Ramp (200 Steps)...");
     for (int i = 1; i <= 200; i++) { 
@@ -459,25 +601,24 @@ void softStartSystem(float t, float h, float p) {
 }
 
 // ==========================================
-// 5. WI-FI FUNCTIONS (UPDATED FOR STABILITY)
+// 5. WI-FI FUNCTIONS
 // ==========================================
 
 void sendAT(String command, int waitMs) {
     Serial1.println(command);
     unsigned long start = millis();
     while (millis() - start < waitMs) {
-        while (Serial1.available()) Serial.write(Serial1.read()); 
+        while (Serial1.available()) Serial.write(Serial1.read());
     }
 }
 
-// Helper: Block processing until OK or ERROR
 bool sendATWaitForResponse(String command, int timeout) {
     Serial1.println(command);
     unsigned long start = millis();
     while(millis() - start < timeout) {
         if(Serial1.available()) {
             String resp = Serial1.readString();
-            Serial.print(resp); // Echo for debugging
+            Serial.print(resp); 
             if(resp.indexOf("OK") != -1) return true;
             if(resp.indexOf("ERROR") != -1) return false;
             if(resp.indexOf("FAIL") != -1) return false;
@@ -524,12 +665,10 @@ bool sendChunked(int connectionId, const char* data, bool isProgMem) {
     return true;
 }
 
-// Helper to extract IP from CIFSR response
 String extractIP(String response) {
-    // Example: +CIFSR:STAIP,"192.168.1.45"
     int staIpIdx = response.indexOf("STAIP,\"");
     if(staIpIdx != -1) {
-        int start = staIpIdx + 7; // Skip STAIP,"
+        int start = staIpIdx + 7; 
         int end = response.indexOf("\"", start);
         if(end != -1) return response.substring(start, end);
     }
@@ -538,7 +677,7 @@ String extractIP(String response) {
 
 void initESP() {
     Serial1.begin(115200); 
-    Serial1.setTimeout(50); 
+    Serial1.setTimeout(50);
     delay(1000);
     
     Serial.println("Initializing Wi-Fi...");
@@ -565,19 +704,20 @@ void checkWebClients() {
         }
         
         if (buffer.indexOf("+IPD,") != -1) {
-            digitalWrite(LED_PIN, HIGH); 
-            
+            digitalWrite(LED_PIN, HIGH);
             int startIp = buffer.indexOf("+IPD,") + 5;
             int endIp = buffer.indexOf(",", startIp);
             String idStr = buffer.substring(startIp, endIp);
             int connectionId = idStr.toInt();
-            
             int getPos = buffer.indexOf("GET");
             String request = "";
             if (getPos != -1) request = buffer.substring(getPos);
-
             // --- DATA API ---
             if (request.indexOf("/api/data") != -1) {
+                // UPDATE HEARTBEAT ON SUCCESSFUL DATA REQUEST
+                lastClientRequestTime = millis();
+                if (isCloudMode && currentLedColor == LED_RED) setLED(LED_OFF, MODE_SOLID); // Recovery from lost state
+
                 String json = "{";
                 json += "\"temperature\":" + String(data_ref.temp, 1) + ",";
                 json += "\"humidity\":" + String(data_ref.hum, 0) + ",";
@@ -585,7 +725,6 @@ void checkWebClients() {
                 json += "\"solarRadiation\":" + String(res_ghi, 0) + ",";
                 json += "\"heatFlux\":" + String(res_flux, 1) + ",";
                 json += "\"deltaTemperature\":" + String(res_delta_t, 2) + ",";
-                // SEND THE NEW IP IN THE DATA PACKET
                 json += "\"ip\":\"" + currentStationIP + "\"";
                 json += "}";
 
@@ -602,14 +741,74 @@ void checkWebClients() {
                 sendChunked(connectionId, json.c_str(), false);
                 Serial1.print("AT+CIPCLOSE=");
                 Serial1.println(connectionId);
-                
             } 
-            // --- NEW: WIFI CONNECT API (FIXED LOGIC) ---
+            // --- RECOVER API (OPTIMIZED) ---
+            else if (request.indexOf("/api/recover") != -1) {
+                lastClientRequestTime = millis();
+                
+                // 1. Send Headers First
+                String header = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\nTransfer-Encoding: chunked\r\n\r\n";
+                Serial1.print("AT+CIPSEND="); Serial1.print(connectionId); Serial1.print(","); Serial1.println(header.length());
+                if(Serial1.find(">")) Serial1.print(header);
+                delay(50);
+
+                // 2. Start JSON Array
+                sendChunked(connectionId, "[", false);
+                
+                // 3. Stream Data Packet by Packet
+                for(int i=0; i<eepromWriteIndex; i++) {
+                    OfflinePacket p = readEEPROMPacket(i);
+                    String item = "{";
+                    item += "\"timestamp\":" + String(p.timestamp) + ",";
+                    item += "\"ghi\":" + String(p.ghi, 1) + ",";
+                    item += "\"flux\":" + String(p.flux, 1) + ",";
+                    item += "\"temp\":" + String(p.temp, 1) + ",";
+                    item += "\"hum\":" + String(p.hum, 1);
+                    item += "}";
+                    if(i < eepromWriteIndex - 1) item += ",";
+                    sendChunked(connectionId, item.c_str(), false);
+                }
+
+                // 4. Close JSON Array
+                sendChunked(connectionId, "]", false);
+                
+                // 5. Close Connection
+                Serial1.print("AT+CIPCLOSE="); Serial1.println(connectionId);
+                wipeEEPROM();
+            }
+            // --- [NEW] TIME SYNC API ---
+            else if (request.indexOf("/api/time") != -1) {
+                 String tParam = getUrlParam(request, "t");
+                 if (tParam.length() > 0) {
+                     unsigned long unixTime = strtoul(tParam.c_str(), NULL, 10);
+                     if (unixTime > 1000000) {
+                         rtc.adjust(DateTime(unixTime));
+                         Serial.print("RTC UPDATED: "); Serial.println(unixTime);
+                     }
+                 }
+                 String header = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n";
+                 Serial1.print("AT+CIPSEND="); Serial1.print(connectionId); Serial1.print(","); Serial1.println(header.length());
+                 if(Serial1.find(">")) Serial1.print(header);
+                 Serial1.print("AT+CIPCLOSE="); Serial1.println(connectionId);
+            }
+            // --- STATUS API ---
+            else if (request.indexOf("/api/status") != -1) {
+                lastClientRequestTime = millis();
+                String code = getUrlParam(request, "code");
+                if (code == "error_db") setLED(LED_WHITE, MODE_BLINK);
+                else if (code == "error_misc") setLED(LED_ORANGE, MODE_BLINK);
+                else if (code == "ok") setLED(LED_OFF, MODE_SOLID);
+                
+                String header = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n";
+                Serial1.print("AT+CIPSEND="); Serial1.print(connectionId); Serial1.print(","); Serial1.println(header.length());
+                if(Serial1.find(">")) Serial1.print(header);
+                Serial1.print("AT+CIPCLOSE="); Serial1.println(connectionId);
+            }
+            // --- WIFI CONNECT API ---
             else if (request.indexOf("/api/wifi") != -1) {
                  String ssid = getUrlParam(request, "ssid");
                  String pass = getUrlParam(request, "pass");
                  
-                 // 1. Send Response FIRST
                  String resp = "{\"status\":\"Connecting...\"}";
                  String header = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n";
                  header += "Content-Length: " + String(resp.length()) + "\r\n\r\n";
@@ -623,27 +822,23 @@ void checkWebClients() {
                  sendChunked(connectionId, resp.c_str(), false);
                  Serial1.print("AT+CIPCLOSE=");
                  Serial1.println(connectionId);
-                 
-                 // 2. WAIT FOR CLOSE TO COMPLETE
                  delay(1000); 
-                 while(Serial1.available()) Serial1.read(); // Flush junk
+                 while(Serial1.available()) Serial1.read(); 
 
-                 // 3. EXECUTE CONNECTION (BLOCKING)
                  if(ssid.length() > 0) {
-                     Serial.print("\nAttempting connection to: "); Serial.println(ssid);
+                     Serial.print("\nAttempting connection to: ");
+                     Serial.println(ssid);
                      
-                     // Enable Hybrid Mode
                      sendATWaitForResponse("AT+CWMODE=3", 2000);
                      delay(1000);
                      
-                     // Send Connection Command and WAIT
                      String connectCmd = "AT+CWJAP=\"" + ssid + "\",\"" + pass + "\"";
-                     
-                     // Wait up to 15 seconds for connection result
                      if(sendATWaitForResponse(connectCmd, 15000)) {
                          Serial.println("\nSUCCESS: Wi-Fi Connected!");
-                         
-                         // --- GET NEW IP ADDRESS ---
+                         isCloudMode = true; 
+                         cloudModeStartTime = millis(); 
+                         lastClientRequestTime = millis(); // Refresh heartbeat
+                         setLED(LED_GREEN, MODE_SOLID);
                          Serial.println("GETTING NEW IP ADDRESS...");
                          delay(500);
                          Serial1.println("AT+CIFSR");
@@ -656,22 +851,21 @@ void checkWebClients() {
                                 Serial.write(c);
                             }
                          }
-                         // PARSE IP FROM RESPONSE
                          currentStationIP = extractIP(ipResponse);
                          Serial.print("NEW IP DETECTED: "); Serial.println(currentStationIP);
-                         // --------------------------
 
                      } else {
                          Serial.println("\nFAILURE: Wi-Fi Connection Failed.");
-                         currentStationIP = "0.0.0.0"; // Reset on fail
+                         currentStationIP = "0.0.0.0";
+                         setLED(LED_RED, MODE_SOLID);
                      }
-                     
-                     // Flush any remaining data to prevent next loop reading junk
                      while(Serial1.available()) Serial1.read();
                  }
             }
             // --- WEBSITE RESPONSE ---
             else {
+                // Heartbeat valid when loading page
+                lastClientRequestTime = millis();
                 int totalLen = strlen_P(HTML_PART_1) + strlen_P(LOGO_DATA_URI) + 
                                strlen_P(HTML_PART_2) + strlen_P(LOGO_DATA_URI) + 
                                strlen_P(HTML_PART_3) + strlen_P(LOGO_DATA_URI) +
@@ -687,7 +881,6 @@ void checkWebClients() {
                 
                 if(Serial1.find(">")) Serial1.print(header);
                 delay(100);
-
                 if(sendChunked(connectionId, HTML_PART_1, true)) {
                     if(sendChunked(connectionId, LOGO_DATA_URI, true)) {
                         if(sendChunked(connectionId, HTML_PART_2, true)) {
@@ -705,7 +898,7 @@ void checkWebClients() {
                 Serial1.print("AT+CIPCLOSE=");
                 Serial1.println(connectionId);
             }
-            digitalWrite(LED_PIN, LOW); 
+            digitalWrite(LED_PIN, LOW);
         }
     }
 }
@@ -716,8 +909,14 @@ void checkWebClients() {
 
 void setup() {
     pinMode(LED_PIN, OUTPUT);
-    digitalWrite(LED_PIN, HIGH); 
-    
+    digitalWrite(LED_PIN, HIGH);
+    // [NEW] RGB LED SETUP
+    pinMode(PIN_RGB_R, OUTPUT);
+    pinMode(PIN_RGB_G, OUTPUT);
+    pinMode(PIN_RGB_B, OUTPUT);
+    digitalWrite(PIN_RGB_R, LOW);
+    digitalWrite(PIN_RGB_G, LOW);
+    digitalWrite(PIN_RGB_B, LOW);
     Serial.begin(115200); 
     delay(2000);
     Serial.println("FiaPhy System Starting...");
@@ -726,14 +925,33 @@ void setup() {
     Wire.setSCL(PIN_SCL);
     Wire.begin();
 
+    // [NEW] EEPROM I2C SETUP (Wire1 on pins 6/7)
+    Wire1.setSDA(PIN_EEPROM_SDA);
+    Wire1.setSCL(PIN_EEPROM_SCL);
+    Wire1.begin();
+
+    // [NEW] RTC SETUP
+    if (!rtc.begin(&Wire1)) { // Pass Wire1 to RTC
+        Serial.println("RTC Not Found on Wire1!");
+    } else {
+        if (rtc.lostPower()) {
+             // Fallback if battery dead
+             rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+        }
+    }
+
     if (!bme_ref.begin(0x76) || !bme_flux.begin(0x77)) {
         Serial.println("SENSOR ERROR!");
-        while (1) { digitalWrite(LED_PIN, !digitalRead(LED_PIN)); delay(100); }
+        // Sensor Error -> Red Blink
+        setLED(LED_RED, MODE_BLINK);
+        while (1) { 
+            updateLED(); 
+            delay(10);
+        }
     }
 
     bme_ref.setSampling(Adafruit_BME280::MODE_FORCED, Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::FILTER_OFF);
     bme_flux.setSampling(Adafruit_BME280::MODE_FORCED, Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::FILTER_OFF);
-
     dtdss.configure(LATITUDE, LONGITUDE, ALTITUDE_M);
     
     bme_ref.takeForcedMeasurement();
@@ -745,10 +963,12 @@ void setup() {
     data_ref.press = bme_ref.readPressure() / 100.0f;
     
     softStartSystem(data_ref.temp, data_ref.hum, data_ref.press);
-    
     initESP();
     digitalWrite(LED_PIN, LOW); 
     Serial.println("SYSTEM READY. CONNECT TO: " WIFI_SSID);
+    
+    // Initialize Heartbeat
+    lastClientRequestTime = millis();
 }
 
 // ==========================================
@@ -757,6 +977,19 @@ void setup() {
 
 void loop() {
     checkWebClients();
+    updateLED();
+    // [NEW] Heartbeat Logic for Connection Loss
+    // If we are in Cloud Mode, but haven't heard from browser for 10 seconds -> Lost
+    if (isCloudMode && (millis() - lastClientRequestTime > 10000)) {
+        if (currentLedColor != LED_RED) {
+            setLED(LED_RED, MODE_SOLID); // Turn RED (Lost)
+        }
+    }
+
+    // [NEW] Handle Cloud Mode Initial Green Light Timeout
+    if (isCloudMode && (millis() - cloudModeStartTime > 5000) && currentLedColor == LED_GREEN) {
+        setLED(LED_OFF, MODE_SOLID);
+    }
 
     unsigned long current_time = millis();
 
@@ -768,7 +1001,7 @@ void loop() {
     }
 
     if (waiting_for_sensor_read && (current_time - sensor_read_start_time >= 50)) {
-        last_trigger_time = current_time; 
+        last_trigger_time = current_time;
         waiting_for_sensor_read = false;
 
         float raw_ref_t = bme_ref.readTemperature();
@@ -777,6 +1010,10 @@ void loop() {
         float raw_flux_t = bme_flux.readTemperature();
         float raw_flux_h = bme_flux.readHumidity();
         float raw_flux_p = bme_flux.readPressure() / 100.0f;
+        // Sensor disconnect check
+        if (isnan(raw_ref_t) || isnan(raw_flux_t)) {
+            if (isCloudMode) setLED(LED_RED, MODE_BLINK);
+        }
 
         data_ref.temp = apply_filter(raw_ref_t, data_ref.temp);
         data_ref.hum = apply_filter(raw_ref_h, data_ref.hum);
@@ -795,10 +1032,27 @@ void loop() {
         if (dtdss.isFrameReady()) {
             FiaPhy::RadiationResult result = dtdss.compute();
             if (result.valid) {
-                res_ghi = result.ghi_Wm2;          
+                res_ghi = result.ghi_Wm2;
                 res_flux = result.heat_flux_Wm2;   
                 res_delta_t = result.temp_differential_C;
                 data_valid = true;
+
+                // [NEW] OFFLINE LOGIC - Triggered by RED Light State (Lost Connection)
+                // This logic triggers when the "Heartbeat" (10s timeout) has set the LED to Red
+                if (isCloudMode && currentLedColor == LED_RED && currentLedMode == MODE_SOLID) {
+                    
+                    // [OPTIMIZATION] Only save once every 60 seconds (OFFLINE_LOG_INTERVAL)
+                    if (millis() - lastOfflineLogTime >= OFFLINE_LOG_INTERVAL) {
+                        OfflinePacket p;
+                        p.timestamp = rtc.now().unixtime(); // [NEW] Use Real Time
+                        p.ghi = res_ghi;
+                        p.flux = res_flux;
+                        p.temp = data_ref.temp;
+                        p.hum = data_ref.hum;
+                        writeEEPROMPacket(p);
+                        lastOfflineLogTime = millis(); // Reset timer
+                    }
+                }
             }
         }
     }

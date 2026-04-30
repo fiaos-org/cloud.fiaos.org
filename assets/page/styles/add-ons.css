@@ -159,6 +159,44 @@ main p {
     max-width: none !important;
 }
 
+.fiaphy-support-section {
+    margin: 2rem 0 !important;
+    padding: 0 !important;
+}
+
+.fiaphy-support-section h2,
+.fiaphy-support-section h3 {
+    color: #000000 !important;
+    font-size: 22px !important;
+    font-weight: bold !important;
+    margin: 0 0 0.75rem !important;
+}
+
+.fiaphy-support-section p {
+    margin: 0 0 0.75rem !important;
+}
+.fiaphy-support-images {
+  background-image:  linear-gradient(rgba(229, 229, 229, 0.3), rgba(255, 255, 255, 0.895)),  url('../media/global-network-map.jpg');
+  background-position: center;
+  background-size: cover;
+  width: 100%;
+  height: 10rem;
+  justify-content: center;
+  align-items: center;
+
+}
+.fiaphy-support-image {
+    display: block !important;
+   
+    width: 500px;
+   
+    margin: 0 0 0.75rem !important;
+}
+
+.fiaphy-board-image {
+    width:100px;
+}
+
 .btn,
 .btn-link,
 .btn-primary,

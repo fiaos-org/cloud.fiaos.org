@@ -56,6 +56,37 @@
         .circular {
             display: none;
         }
+
+        .fiaphy-support-section {
+            margin: 2rem auto 0;
+            max-width: 40rem;
+            padding: 0 1rem;
+            text-align: left;
+        }
+
+        .fiaphy-support-section h2 {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 20px;
+            margin: 0 0 0.75rem;
+        }
+
+        .fiaphy-support-section p {
+            margin: 0 0 0.75rem;
+            line-height: 1.4;
+        }
+
+        .fiaphy-support-image {
+            display: block;
+            height: auto;
+            width: 100%;
+           
+            margin: 0 0 0.75rem;
+        }
+
+        .fiaphy-board-image {
+            width: min(100%, 300px);
+            
+        }
     </style>
     <script>
         // Redirect after 2 seconds
@@ -65,14 +96,10 @@
     </script>
 </head>
 <body>
-    <div class="loading-screen">
-        <img alt="FiaPhy logo" class="loading-logo" src="https://fiaos.org/assets/media/fiaphy-clean.png" />
-        <div class="spinner">
-            <svg class="circular" viewBox="25 25 50 50">
-                <circle class="path" cx="50" cy="50" r="20" fill="none" stroke-width="2" stroke-miterlimit="10"/>
-            </svg>
-        </div>
-        <p class="loading-message">If the device page does not open automatically, go to http://192.168.4.1.</p>
+      <div class="loading-screen">
+        <img class="connect-gif" width="70px" src="/fiaphy/javascript/9835729.png" loading="eager" decoding="async" referrerpolicy="no-referrer" alt="">
+        <p class="loading-message">If the device page does not open automatically, go to FiaPhy Internal Server address: http://192.168.4.1.</p>
+        
     </div>
 </body>
 </html>

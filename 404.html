@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Not found - FiaOS.org</title>
     <meta http-equiv="refresh" content="2;url=https://cloud.fiaos.org/">
     <style>
@@ -29,6 +30,27 @@
             color: #000000;
             text-decoration: underline;
         }
+
+        .fiaphy-support-section {
+            margin: 2rem 0;
+        }
+
+        .fiaphy-support-section h2 {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 20px;
+            margin: 0 0 0.75rem;
+        }
+
+        .fiaphy-support-image {
+            display: block;
+            height: auto;
+            max-width: 100%;
+            margin: 0 0 0.75rem;
+        }
+
+        .fiaphy-board-image {
+            width: min(100%, 300px);
+        }
     </style>
 </head>
 <body>
@@ -36,6 +58,14 @@
         <h1>404. Page not found.</h1>
         <p>You are being redirected to <a href="https://cloud.fiaos.org/">cloud.fiaos.org</a>.</p>
         <p>If the redirect does not work, <a href="https://cloud.fiaos.org/">open the home page</a>.</p>
+        <section class="fiaphy-support-section">
+            <h2>Buy a FiaPhy device</h2>
+            <p>Buy a FiaPhy device with the FiaPhy Dual Development Board and contribute to open science while measuring solar radiation, heat flux, and other environmental variables at a fraction of the usual cost.</p>
+            <p>If you are not familiar with the project, read <a href="https://fiaos.org/fiaphy">https://fiaos.org/fiaphy</a> first.</p>
+            <img class="fiaphy-support-image" src="assets/page/media/global-network-map.jpg" alt="World network connection map">
+            <a href="https://fiaos.org/silicon/"><img class="fiaphy-support-image fiaphy-board-image" src="assets/page/media/fiaphy-dual-board.png" alt="FiaPhy Dual Development Board"></a>
+            <p><a href="https://fiaos.org/silicon/">Order the FiaPhy Dual Development Board</a>. Fill the Google form with your information and submit the order.</p>
+        </section>
         <p>Copyrights (c) FiaOS.org.</p>
     </main>
 </body>

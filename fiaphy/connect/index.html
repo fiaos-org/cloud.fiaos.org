@@ -71,6 +71,34 @@
             display: none;
         }
 
+        .fiaphy-support-section {
+            margin: 2rem auto 0;
+            max-width: 40rem;
+            text-align: left;
+        }
+
+        .fiaphy-support-section h2 {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 20px;
+            margin: 0 0 0.75rem;
+        }
+
+        .fiaphy-support-section p {
+            margin: 0 0 0.75rem;
+            line-height: 1.4;
+        }
+
+        .fiaphy-support-image {
+            display: block;
+            height: auto;
+            max-width: 100%;
+            margin: 0 0 0.75rem;
+        }
+
+        .fiaphy-board-image {
+            width: min(100%, 300px);
+        }
+
         @media (max-width: 480px) {
             .loading-screen {
                 justify-content: flex-start;
@@ -99,6 +127,14 @@
     <div class="loading-screen">
         <img class="connect-gif" src="/fiaphy/javascript/9835729.png" loading="eager" decoding="async" referrerpolicy="no-referrer" alt="">
         <p class="loading-message">If the device page does not open automatically, go to FiaPhy Internal Server address: http://192.168.4.1.</p>
+        <section class="fiaphy-support-section">
+            <h2>Buy a FiaPhy device</h2>
+            <p>Buy a FiaPhy device with the FiaPhy Dual Development Board and contribute to open science while measuring solar radiation, heat flux, and other environmental variables at a fraction of the usual cost.</p>
+            <p>If you are not familiar with the project, read <a href="https://fiaos.org/fiaphy">https://fiaos.org/fiaphy</a> first.</p>
+            <img class="fiaphy-support-image" src="../../assets/page/media/global-network-map.jpg" alt="World network connection map">
+            <a href="https://fiaos.org/silicon/"><img class="fiaphy-support-image fiaphy-board-image" src="../../assets/page/media/fiaphy-dual-board.png" alt="FiaPhy Dual Development Board"></a>
+            <p><a href="https://fiaos.org/silicon/">Order the FiaPhy Dual Development Board</a>. Fill the Google form with your information and submit the order.</p>
+        </section>
     </div>
 </body>
 </html>

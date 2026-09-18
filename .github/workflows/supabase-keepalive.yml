@@ -1,0 +1,33 @@
+name: Keep Supabase Active
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Query Supabase sensor_data
+        shell: bash
+        run: |
+          set -euo pipefail
+          config="$(curl -fsSL https://raw.githubusercontent.com/fiaos-org/cloud.fiaos.org/main/data/index.html)"
+          supabase_url="$(printf '%s' "$config" | sed -n "s/.*const SUPABASE_URL = '\([^']*\)'.*/\1/p" | head -n1)"
+          supabase_key="$(printf '%s' "$config" | sed -n "s/.*const SUPABASE_KEY = '\([^']*\)'.*/\1/p" | head -n1)"
+          test -n "$supabase_url"
+          test -n "$supabase_key"
+          status="$(curl --silent --show-error --output /tmp/supabase-body --write-out '%{http_code}' \
+            "$supabase_url/rest/v1/sensor_data?select=device_id&limit=1" \
+            -H "apikey: $supabase_key" \
+            -H "Authorization: Bearer $supabase_key")"
+          if [[ "$status" != "200" && "$status" != "206" ]]; then
+            cat /tmp/supabase-body
+            exit 1
+          fi
+          echo "Supabase database keep-alive query succeeded with HTTP $status."
